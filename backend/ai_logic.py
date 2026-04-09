@@ -1,49 +1,50 @@
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 import chromadb
+from sentence_transformers import SentenceTransformer
+import os
 
 # ჩავტვირთავ მონაცემებს
 def load_data():
-    df=pd.read_csv("../data/tmdb_5000_movies.csv")
-    
-    # ვიყენებ მხოლოდ საჭირო სვეტებს და ვშლი ცარიელ სტრიქონებს
+    base_dir=os.path.dirname(os.path.abspath(__file__))
+    csv_path=os.path.join(base_dir, "..", "data", "tmdb_5000_movies.csv")
+
+    df=pd.read_csv(csv_path)
     df=df[["id", "original_title", "overview"]].dropna()
     return df
 
+print("Data and AI model loading...")
 df=load_data()
-print(f"ჩაიტვირთა {len(df)} ფილმი.")
-
-print("AI მოდელი იტვირთება...")
 model=SentenceTransformer("all-MiniLM-L6-v2")
 
 chroma_client=chromadb.Client()
-collection=chroma_client.create_collection(name="movies_collection")
+collection=chroma_client.get_or_create_collection(name="movies_collection")
 
-print("მიმდინარეობს ვექტორიზაცია და ბაზაში შენახვა...")
-titles=df['original_title'].tolist()[:100]
-overview=df["overview"].tolist()[:100]
-ids=[str(i) for i in df["id"].tolist()[:100]]
+if collection.count()==0:
+    print("Now starts the emdedding process. Please wait...")
 
-embeddings=model.encode(overview)
+    
+    titles=df['original_title'].tolist()
+    overviews=df["overview"].tolist()
+    ids=[str(i) for i in df["id"].tolist()]
 
-collection.add(
-    embeddings=embeddings.tolist(),
-    documents=overview,
-    metadatas=[{"title": t} for t in titles],
-    ids=ids
-)
+    embeddings=model.encode(overviews)
+    collection.add(
+        embeddings=embeddings.tolist(),
+        documents=overviews,
+        metadatas=[{"title": t} for t in titles],
+        ids=ids
+    )
 
-print("ბაზა მზადაა! შეგიძლიათ დაიწყოთ ფილმების ძებნა.")
+    print("DataBase is ready to use!")
 
-# სატესტო ძებნის მაგალითი
-query="A movie about space exploration"
-query_embedding=model.encode([query]).tolist()
+def search_movies(query, top_k=5):
+    query_embedding=model.encode([query]).tolist()
+    results=collection.query(
+        query_embeddings=query_embedding,
+        n_results=top_k
+    )
 
-results=collection.query(
-    query_embeddings=query_embedding,
-    n_results=3
-)
+    return [res["title"] for res in results["metadatas"][0]]
 
-print("\nძებნის შედეგები:")
-for i in range(len(results["metadatas"][0])):
-    print(f" - {results["metadatas"][0][i]["title"]}")
+if __name__=="__main__":
+    print(search_movies("A movie about love and friendship"))

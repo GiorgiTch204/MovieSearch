@@ -15,3 +15,10 @@ app.add_middleware(
 def home():
     return {"message": "Movie Semantic Search API is running perfectly!"}
 
+@app.get("/search")
+def search(query: str=Query(..., min_length=2)):
+    """
+        აბრუნებს მსგავს ფილმებს მომხმარებლის მიერ შეყვანილი ტექსტის მიხედვით.
+    """
+    results=search_movies(query)
+    return {"results": results}
