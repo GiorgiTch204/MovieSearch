@@ -7,3 +7,11 @@
 2. შექმენით ვირტუალური გარემო: `python -m venv venv`
 3. დააინსტალირეთ ბიბლიოთეკები: `pip install -r backend/requirements.txt`
 4. გაუშვით AI ლოგიკა: `python backend/ai_logic.py`
+
+
+
+პროექტის გაშვება:
+ბექენდ სერვერის ჩასართავად გამოიყენეთ შემდეგი ბრძანება ტერმინალში:
+
+Bash
+python -m uvicorn main:app --reload
