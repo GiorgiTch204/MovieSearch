@@ -1,3 +1,27 @@
+#ignore the virtual environment folder,
+#as it contains thousands of library files that should not be uploaded.
 venv/
+.env
+
+#ignore the persistent vector database folder.
+#this folder contains the actual binary data of your embeddings,
+#which can be very large and should stay on your local machine.
+backend/chroma_db/
+
+#ignore python cache files and compiled bytecode.
+#these are generated automatically when you run the scripts,
+#and they are not necessary for the source code.
 __pycache__/
-*.csv
+*.py[cod]
+*$py.class
+
+#ignore the dataset folder if it contains large csv files.
+#usually, we do not upload large raw datasets to github,
+#instead we provide a link to download them.
+data/tmdb_5000_movies.csv
+
+#ignore operating system specific files.
+#these are hidden files created by windows or macos,
+#which have nothing to do with your code.
+.DS_Store
+Thumbs.db
