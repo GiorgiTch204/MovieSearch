@@ -38,93 +38,98 @@
 // რაც უზრუნველყოფს ძიების სწრაფ და მოსახერხებელ განხორციელებას.
 
 
-
-// I define an async function that will handle the movie search process.
-// I use async because I need to wait for the API response (fetch is asynchronous).
+// ვქმნი ასინქრონულ ფუნქციას,
+// რომელიც მართავს ფილმების ძებნის პროცესს.
+// ვიყენებ async-ს,
+// რადგან მჭირდება api-ს პასუხის ლოდინი.
 async function searchMovies(){
 
-    // I get the value entered by the user in the input field with id "query".
-    // I need this because it is the search text that will be sent to the backend.
+    // ვიღებ მომხმარებლის მიერ შეყვანილ ტექსტს id "query" ინპუტიდან.
+    // ეს მჭირდება იმისთვის,
+    // რომ საძიებო ტექსტი გავაგზავნო ბექენდში.
     const query = document.getElementById("query").value;
 
-    // I get the HTML element where I will display the movie results.
-    // I need this so I can dynamically insert the results into the page.
+    // ვიღებ html ელემენტს,
+    // სადაც ფილმების შედეგები უნდა გამოჩნდეს.
+    // ეს მჭირდება შედეგების დინამიურად ჩასასმელად.
     const resultsList = document.getElementById("results");
 
-    // I get the loading element that shows a loading message.
-    // I need this to give feedback to the user while waiting for the server response.
+    // ვიღებ loading ელემენტს,
+    // რომელიც აჩვენებს ჩატვირთვის შეტყობინებას.
+    // ეს მჭირდება მომხმარებლისთვის უკუკავშირის მისაცემად.
     const loading = document.getElementById("loading");
 
-    // I check if the user input is empty.
-    // I do this to prevent sending empty requests to the server.
+    // ვამოწმებ,
+    // არის თუ არა ინპუტი ცარიელი.
+    // ამას ვაკეთებ იმისთვის,
+    // რომ სერვერზე ცარიელი მოთხოვნა არ გაიგზავნოს.
     if(!query){
         return alert("Please enter a description!");
     }
 
-    // I remove the "hidden" class from the loading element.
-    // I do this to show the loading message while the request is being processed.
+    // loading ელემენტს ვაცილებ "hidden" კლასს.
+    // ამას ვაკეთებ ჩატვირთვის ტექსტის გამოსაჩენად.
     loading.classList.remove("hidden");
 
-    // I clear any previous search results.
-    // I do this so new results don’t mix with old ones.
+    // ვასუფთავებ წინა ძებნის შედეგებს.
+    // ამას ვაკეთებ იმისთვის,
+    // რომ ახალი შედეგები ძველს არ შეერიოს.
     resultsList.innerHTML = "";
 
     try {
-        // I send a GET request to my FastAPI backend with the user query.
-        // I use encodeURIComponent to safely include the query in the URL.
+        // ვაგზავნი get მოთხოვნას fastapi ბექენდთან მომხმარებლის ტექსტით.
+        // ვიყენებ encodeuricomponent-ს url-ში ტექსტის უსაფრთხოდ ჩასასმელად.
         const response = await fetch(`http://127.0.0.1:8000/search?query=${encodeURIComponent(query)}`);
 
-        // I convert the response into JSON format.
-        // I need this because the backend sends data as JSON.
+        // მიღებულ პასუხს ვაკონვერტირებ json ფორმატში.
+        // ეს მჭირდება მონაცემების წასაკითხად.
         const data = await response.json();
         
-        // I hide the loading message after receiving the response.
-        // I do this to indicate that the process is complete.
+        // ვმალავ ჩატვირთვის შეტყობინებას პასუხის მიღების შემდეგ.
+        // ამით ვანიშნებ მომხმარებელს,
+        // რომ პროცესი დასრულდა.
         loading.classList.add("hidden");
 
-        // I check if the response contains any movie results.
-        // I do this to decide whether to display results or a fallback message.
+        // ვამოწმებ,
+        // შეიცავს თუ არა პასუხი ფილმების სიას.
         if(data.results.length > 0){
 
-            // I loop through each movie title in the results array.
-            // I do this to create a list item for each movie.
+            // სათითაოდ გადავდივარ შედეგებში არსებულ ფილმებზე.
+            // თითოეული ფილმისთვის ვქმნი სიის ელემენტს.
             data.results.forEach(movie => {
 
-                // I create a new <li> element.
-                // I need this to display each movie as a list item.
+                // ვქმნი ახალ <li> ელემენტს.
+                // ეს მჭირდება ფილმის სათაურის გამოსაჩენად.
                 const li = document.createElement("li");
 
-                // I set the text of the list item to the movie title.
-                // I do this so the user can see the movie name.
+                // სიის ელემენტში ვწერ ფილმის სათაურს.
                 li.textContent = movie;
 
-                // I append the list item to the results list.
-                // I do this to render it on the page.
+                // შექმნილ ელემენტს ვამატებ შედეგების სიაში.
                 resultsList.appendChild(li);
             });
 
         } else {
-            // I display a message if no movies were found.
-            // I do this to inform the user that the search returned no results.
+            // ვაჩვენებ შეტყობინებას,
+            // თუ ფილმები ვერ მოიძებნა.
             resultsList.innerHTML = "<li>No movies found. Try different description.</li>";
         }
 
     } catch(error) {
-        // I log the error in the console.
-        // I do this for debugging purposes.
+        // კონსოლში გამომაქვს შეცდომა დებაგინგისთვის.
         console.error("Error:", error);
 
-        // I update the loading element with an error message.
-        // I do this to inform the user that something went wrong.
+        // მომხმარებელს ვუწერ,
+        // რომ სერვერთან დაკავშირება ვერ მოხერხდა.
         loading.innerHTML = "Error connecting to server. Please try again later.";
     }
 }
 
-// I add an event listener to the input field.
+// ვამატებ მოსმენის ფუნქციას ინპუტზე კლავიატურის ღილაკებისთვის.
 document.getElementById("query").addEventListener("keypress", function(event) {
 
-  // I check if the pressed key is "Enter".
-  // I do this to trigger the search when the user presses Enter.
+  // ვამოწმებ,
+  // დააჭირა თუ არა მომხმარებელმა "enter" ღილაკს.
   if (event.key === "Enter") {
     searchMovies();
   }

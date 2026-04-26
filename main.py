@@ -40,47 +40,58 @@
 
 
 
-# imported FastAPI so I can create an API server that handles HTTP requests and responses.
-# also imported Query to explicitly define and validate query parameters if needed.
+
+# შემოვიტანე fastapi,
+# რათა შევქმნა api სერვერი,
+# რომელიც მართავს http მოთხოვნებსა და პასუხებს.
+# ასევე შემოვიტანე query პარამეტრების განსასაზღვრად და ვალიდაციისთვის.
 from fastapi import FastAPI, Query
 
-# I import CORSMiddleware so I can allow my frontend to communicate with this backend.
-# This is necessary because browsers block requests between different origins unless CORS is enabled.
+# შემოვიტანე corsmiddleware,
+# რათა ჩემს ფრონტენდს მივეცი ბექენდთან კომუნიკაციის უფლება.
+# ეს აუცილებელია,
+# რადგან ბრაუზერები ბლოკავენ სხვადასხვა წყაროებს შორის მოთხოვნებს cors-ის გარეშე.
 from fastapi.middleware.cors import CORSMiddleware
 
-# I import my custom search function from my AI logic module.
-# I need this because this function actually performs the semantic movie search.
+# ჩემი ai ლოგიკის მოდულიდან შემოვიტანე ძებნის ფუნქცია.
+# ეს მჭირდება,
+# რადგან ეს ფუნქცია ასრულებს ფილმების სემანტიკურ ძებნას.
 from backend.ai_logic import search_movies
 
-# I create an instance of the FastAPI application.
-# I give it a title so it appears clearly in the automatic API documentation.
+# ვქმნი fastapi აპლიკაციის ეგზემპლარს.
+# მას ვარქმევ სათაურს,
+# რათა ავტომატურ დოკუმენტაციაში ნათლად გამოჩნდეს.
 app = FastAPI(title="Movie Semantic Search API")
 
-# I add CORS middleware to my app.
-# I do this so that my frontend (HTML/React) can access this API even if it's hosted on a different origin.
+# ჩემს აპლიკაციას ვამატებ cors-ის მხარდაჭერას.
+# ამას ვაკეთებ იმისთვის,
+# რომ ფრონტენდმა შეძლოს api-ზე წვდომა სხვადასხვა მისამართიდან.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # I allow all origins so any client can access my API. It's useful for development, but not secure for production.
-    allow_methods=["*"],  # I allow all HTTP methods (GET, POST) so I don’t restrict how the API can be used.
-    allow_headers=["*"],  # I allow all headers so requests from different clients won’t be blocked.
+    allow_origins=["*"],  # ვრთავ ნებისმიერ მისამართს, რაც კარგია დეველოპმენტისთვის.
+    allow_methods=["*"],  # ვუშვებ ყველა ტიპის მოთხოვნას (get, post და სხვა).
+    allow_headers=["*"],  # ვუშვებ ყველა ტიპის ჰედერებს.
 )
 
-# I define a GET endpoint at the root URL ("/").
-# I use this endpoint to check if my API server is running properly.
+# განვსაზღვრავ get ენდპოინტს მთავარ მისამართზე ("/").
+# ამას ვიყენებ იმის შესამოწმებლად,
+# მუშაობს თუ არა სერვერი გამართულად.
 @app.get("/")
 def home():
 
-    # I return a simple JSON response so I can confirm the API is online when I visit this route.
+    # ვაბრუნებ მარტივ json პასუხს,
+    # რათა დავადასტურო სერვერის ონლაინ რეჟიმი.
     return {"message": "Movie Semantic Search API is running perfectly!"}
 
-# I define another GET endpoint at "/search".
-# I use this endpoint to handle movie search requests from the user.
+# განვსაზღვრავ მეორე get ენდპოინტს "/search" მისამართზე.
+# ამ ენდპოინტს ვიყენებ მომხმარებლის საძიებო მოთხოვნების დასამუშავებლად.
 @app.get("/search")
 def search(query: str, limit: int = 5):
 
-    # I call my AI search function and pass the user's query.
-    # I also pass the limit (top_k) to control how many results I want back.
+    # ვიძახებ ai ძებნის ფუნქციას და გადავცემ მომხმარებლის ტექსტს.
+    # ასევე გადავცემ ლიმიტს შედეგების რაოდენობის გასაკონტროლებლად.
     results = search_movies(query, top_k=limit) 
 
-    # I return the search results as JSON so the frontend can easily read and display them.
+    # ვაბრუნებ ძებნის შედეგებს json ფორმატში,
+    # რათა ფრონტენდმა მარტივად წაიკითხოს და გამოსახოს ისინი.
     return {"results": results}
