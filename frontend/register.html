@@ -27,15 +27,24 @@
                 <input type="password" id="regPassword" required 
                     class="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 text-white">
             </div>
+            <div>
+                <label class="block text-gray-400 mb-2 text-sm">დაადასტურეთ პაროლი</label>
+                <input type="password" id="regConfirmPassword" required 
+                    class="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 text-white">
+            </div>
             <button type="submit" 
                 class="w-full bg-green-600 hover:bg-green-700 p-3 rounded-lg font-bold mt-4 transition">
                 რეგისტრაცია
             </button>
         </form>
         
+        <p id="passwordError" class="text-red-500 text-xs mt-2 hidden">პაროლები არ ემთხვევა!</p>
+
         <p class="text-gray-400 text-center mt-6 text-sm">
             უკვე გაქვთ ანგარიში? <a href="login.html" class="text-blue-400 hover:underline">შედით</a>
         </p>
     </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
