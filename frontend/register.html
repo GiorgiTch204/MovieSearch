@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - AI Movie Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { background-color: #0f172a; color: white; }</style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+        <h2 class="text-3xl font-bold text-blue-400 mb-6 text-center">რეგისტრაცია</h2>
+        
+        <form id="registerForm" class="space-y-4">
+            <div>
+                <label class="block text-gray-400 mb-2 text-sm">მომხმარებლის სახელი</label>
+                <input type="text" id="regUsername" required 
+                    class="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 text-white">
+            </div>
+            <div>
+                <label class="block text-gray-400 mb-2 text-sm">ელ-ფოსტა</label>
+                <input type="email" id="regEmail" required 
+                    class="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 text-white">
+            </div>
+            <div>
+                <label class="block text-gray-400 mb-2 text-sm">პაროლი</label>
+                <input type="password" id="regPassword" required 
+                    class="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 text-white">
+            </div>
+            <button type="submit" 
+                class="w-full bg-green-600 hover:bg-green-700 p-3 rounded-lg font-bold mt-4 transition">
+                რეგისტრაცია
+            </button>
+        </form>
+        
+        <p class="text-gray-400 text-center mt-6 text-sm">
+            უკვე გაქვთ ანგარიში? <a href="login.html" class="text-blue-400 hover:underline">შედით</a>
+        </p>
+    </div>
+</body>
+</html>
