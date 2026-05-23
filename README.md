@@ -1,148 +1,31 @@
-## Movie Semantic Search System
-## ეს არის საბაკალავრო ნაშრომის ფარგლებში შექმნილი სემანტიკური საძიებო სისტემა.
+## Installation and Project Setup
 
-## როგორ გავუშვათ პროექტი:
-# 1. გადმოწერეთ ფილმების ბაზა TMDB 5000, შექმენით data საქაღალდე backend-ში, csv ფაილი ჩააგდეთ data/ საქაღალდეში.
-# 2. შექმენით ვირტუალური გარემო: python -m venv venv.
-# 3. გააქტიურეთ ვირტუალური გარემო და დააინსტალირეთ ბიბლიოთეკები: pip install -r backend/requirements.txt.
-# 4. გაუშვით AI ლოგიკა მონაცემთა ბაზის ინდექსირებისთვის: python backend/ai_logic.py.
-# 5. ჩართეთ სერვერი: python -m uvicorn main:app --reload.
+Before running the application, it is recommended to create and activate a virtual environment in order to isolate the project dependencies from the global Python environment.
 
+### 1. Activate the Virtual Environment
 
+On Windows, activate the virtual environment using the following command:
 
-
-### ეს პროექტი არის ფილმების საძიებო აპლიკაცია,
-რომელიც იყენებს **FastAPI**-ს ბექენდისთვის,
-ხოლო **JavaScript (HTML/CSS)**-ს ფრონტენდისთვის.
-ის მომხმარებლებს საშუალებას აძლევს მოძებნონ ფილმები ბუნებრივი ენის გამოყენებით (მაგალითად: "ფილმი სიყვარულსა და მეგობრობაზე"),
-ხელოვნური ინტელექტის მიერ მხარდაჭერილი სემანტიკური ძიების გამოყენებით.**.
-
-სისტემას ესმის ტექსტის მნიშვნელობა,
-და აბრუნებს ყველაზე შესაბამის ფილმების შედეგებს.
-
----
-
-## მახასიათებლები
-სემანტიკური ფილმების ძებნა (ესმის შინაარსი და არა მხოლოდ საკვანძო სიტყვები).
-
-FastAPI ბექენდ API.
-
-მარტივი ფრონტენდი (HTML, CSS, JavaScript).
-
-ხელოვნური ინტელექტის ვექტორები (embeddings),
-რომლებიც შექმნილია Sentence Transformers-ის გამოყენებით.
-
-ვექტორული მონაცემთა ბაზა ChromaDB-ს გამოყენებით.
-
----
-
-## მოთხოვნები
-
-სანამ პროექტს გაუშვებთ,
-დარწმუნდით,
-რომ გაქვთ:
-
-Python 3.9 ან უფრო მაღალი ვერსია.
-
-pip.
-
-Git.
-
----
-
-## მომზადება და ინსტალაცია
-
-მოახდინეთ რეპოზიტორიის კლონირება:
-
-Bash
-git clone https://github.com/your-username/your-repository-name.git
-cd your-repository-name
-შექმენით ვირტუალური გარემო:
-py -m venv venv
-
-გააქტიურეთ ვირტუალური გარემო:
 venv\Scripts\activate
 
-დააინსტალირეთ დამოკიდებულებები (dependencies):
-py -m pip install -r backend/requirements.txt
+After successful activation, the terminal prompt should display the environment name, for example:
 
-თუ პაკეტების ინსტალაციისას მიიღებთ SSL სერტიფიკატის შეცდომას,
-გაუშვით შემდეგი ბრძანება:
-py -m pip install -r backend/requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
+### 2. Install Project Dependencies
 
+If the required libraries have not been installed yet, install them using the requirements.txt file:
 
-## პროექტის გაშვება
+python -m pip install -r backend/requirements.txt
 
-ჩართეთ FastAPI ბექენდ სერვერი:
-py -m uvicorn main:app --reload
+This command installs all dependencies necessary for running the backend application.
 
-თუ ყველაფერი სწორად მუშაობს,
-დაინახავთ შეტყობინებას:
-Uvicorn running on http://127.0.0.1:8000
+### 3. Run the FastAPI Development Server
 
-პირველი გაშვების თავისებურებები
+To start the backend server, run the following command:
 
-პირველი გაშვებისას აპლიკაცია შეასრულებს შემდეგ მოქმედებებს:
-ჩატვირთავს ფილმების მონაცემთა ბაზას.
-ჩატვირთავს ხელოვნური ინტელექტის მოდელს.
-შექმნის ვექტორებს (embeddings) ყველა ფილმის აღწერისთვის.
+uvicorn main:app --reload
 
-თქვენ დაინახავთ ტექსტს:
-Data and AI model loading...
-Now starts the embedding process...
+The --reload option enables automatic server reloading whenever changes are made to the source code, which is useful during development.
 
-ეს პროცესი შეიძლება გაგრძელდეს რამდენიმე წუთი.
-ეს ნორმალურია და ხდება მხოლოდ ერთხელ,
-რადგან მონაცემები ინახება მყარ დისკზე (Persistent Storage).
-ყოველ მომდევნო გაშვებაზე სისტემა ბაზას ჩატვირთავს მომენტალურად.
+Once the server is running, the API documentation can be accessed at:
 
-## ბექენდის შემოწმება
-
-გახსენით ბრაუზერი და გადადით მისამართზე:
-http://127.0.0.1:8000
-
-თქვენ უნდა დაინახოთ დამადასტურებელი შეტყობინება,
-რომ API მუშაობს.
-
-თქვენ ასევე შეგიძლიათ შეამოწმოთ ენდპოინტები Swagger UI-ს გამოყენებით:
 http://127.0.0.1:8000/docs
-
-## ფრონტენდის გაშვება
-ფრონტენდის გამოსაყენებლად გაქვთ ორი ვარიანტი.
-
-## ვარიანტი 1:
-გახსენით ფაილი პირდაპირ:
-
-frontend/index.html
-
-## ვარიანტი 2:
-
-cd frontend
-py -m http.server 5500
-
-შემდეგ გახსენით:
-http://127.0.0.1:5500
-
-## როგორ გამოვიყენოთ
-ჩართეთ ბექენდ სერვერი.
-გახსენით ფრონტენდი.
-შეიყვანეთ ფილმის აღწერა.
-დააჭირეთ Enter-ს.
-იხილეთ შედეგები.
-
-## საძიებო სისტემისთვის მოთხოვნების მაგალითები
-dark science fiction story
-action movie with heroes
-romantic drama
-
-
-## სისტემა მუშაობს შემდეგი პრინციპით:
-
-ფილმების მონაცემები იტვირთება CSV ფაილიდან.
-თითოეული ფილმის აღწერა გარდაიქმნება რიცხვით ვექტორად (embedding),
-წინასწარ გაწვრთნილი ხელოვნური ინტელექტის მოდელის გამოყენებით.
-ყველა ვექტორი ინახება ვექტორულ მონაცემთა ბაზაში (ChromaDB).
-როდესაც მომხმარებელი შეიყვანს საძიებო მოთხოვნას,
-ის ასევე გარდაიქმნება ვექტორად.
-სისტემა პოულობს ყველაზე მსგავს ვექტორებს.
-შესაბამისი ფილმების სათაურები ბრუნდება შედეგის სახით.
