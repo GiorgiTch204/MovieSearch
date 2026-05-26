@@ -45,13 +45,10 @@ async function searchMovies() {
                 // Tailwind CSS-ის კლასების მინიჭება ბარათის თანამედროვე ვიზუალისთვის.
                 card.className = "movie-card bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg";
                 
-                // ბარათის შიდა სტრუქტურის შევსება: სათაური, აღწერა და სემანტიკური ქულა.
+                // ბარათის შიდა სტრუქტურის შევსება: სათაური,აღწერა.
                 card.innerHTML = `
                     <h3 class="text-xl font-bold mb-2 text-white">${movie.title}</h3>
                     <p class="text-gray-400 text-sm line-clamp-3">${movie.overview}</p>
-                    <div class="mt-4 flex items-center justify-between text-xs text-blue-400 font-semibold">
-                        <span>Semantic Match: ${Math.round(movie.score * 100)}%</span>
-                    </div>
                 `;
                 // შექმნილი ბარათის დამატება მთავარ კონტეინერში.
                 grid.appendChild(card);

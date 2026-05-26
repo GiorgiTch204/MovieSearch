@@ -6,28 +6,47 @@
     <title>AI Movie Search</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; }
-        .movie-card:hover { transform: scale(1.05); transition: 0.3s; }
+        @import url('https://fonts.googleapis.com/css2?family=Fira+GO:wght@300;400;500;700&display=swap');
+        body { 
+            font-family: 'Fira GO', sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
+        }
+        /* ფილმების ბარათების რბილი ჰოვერ ეფექტი */
+        .movie-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .movie-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(59 130 246 / 0.2);
+        }
     </style>
 </head>
-<body class="p-8">
-    <div class="max-w-4xl mx-auto text-center">
-        <h1 class="text-4xl font-bold mb-4 text-blue-400">Movie Semantic Search</h1>
-        <p class="mb-8 text-gray-400">აღწერეთ როგორი ფილმის ნახვა გსურთ</p>
+<body class="min-h-screen flex flex-col justify-start items-center p-6 md:p-12 selection:bg-blue-500 selection:text-white">
+    
+    <div class="w-full max-w-5xl mx-auto text-center mt-8">
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">
+            Movie Semantic Search
+        </h1>
+        <p class="mb-10 text-base md:text-lg text-slate-400 font-light max-w-xl mx-auto">
+            აღწერეთ როგორი ფილმის ნახვა გსურთ და ჩვენი AI ძებნის სისტემა მოძებნის თქვენთვის საუკეთესო ვარიანტებს!
+        </p>
 
-        <div class="flex gap-2 mb-12">
+        <div class="flex flex-col sm:flex-row gap-3 mb-16 max-w-3xl mx-auto bg-slate-900/60 p-2 rounded-2xl border border-slate-800 backdrop-blur-md shadow-2xl">
             <input id="queryInput" type="text" 
                    placeholder="მაგ: a space odyssey with psychological elements..." 
-                   class="w-full p-4 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-blue-500">
+                   class="w-full p-4 pl-5 rounded-xl bg-slate-950/80 text-slate-100 border border-slate-800 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all font-light">
             <button onclick="searchMovies()" 
-                    class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg font-bold">
+                    class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-medium tracking-wide shadow-lg shadow-blue-500/20 active:scale-95 transition-all duration-150">
                 ძებნა
             </button>
         </div>
 
-        <div id="loader" class="hidden text-xl text-blue-400 animate-pulse">AI ეძებს საუკეთესო ვარიანტებს...</div>
+        <div id="loader" class="hidden flex flex-col items-center justify-center gap-3 mb-12">
+            <div class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+            <div class="text-sm font-medium text-blue-400 tracking-wider animate-pulse">AI ეძებს საუკეთესო ვარიანტებს...</div>
+        </div>
 
-        <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             </div>
     </div>
 
