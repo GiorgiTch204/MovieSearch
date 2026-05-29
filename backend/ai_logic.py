@@ -156,8 +156,7 @@ def search_movies(query, top_k=5):
     for i in range(len(results["ids"][0])):
         formatted_results.append({
             "title": results["metadatas"][0][i]["title"],
-            "overview": results["documents"][0][i], # აქ ინახება ფილმის აღწერა
-            "score": 1 - results["distances"][0][i] # გარდავქმნით დისტანციას მსგავსების ქულად
+            "overview": results["documents"][0][i]
         })
 
     return formatted_results
