@@ -1,9 +1,9 @@
 @echo off
-title Movie Semantic Search Server
+title Movie Semantic Search Demo
 
 cd /d "%~dp0"
 
-echo   Starting FastAPI Semantic Search Server...
+echo   Starting Movie Semantic Search Demo...
 
 if not exist "venv\Scripts\python.exe" (
     echo.
@@ -11,7 +11,7 @@ if not exist "venv\Scripts\python.exe" (
     echo Please create it first:
     echo python -m venv venv
     echo venv\Scripts\activate
-    echo python -m pip install -r backend\requirements.txt
+    echo python -m pip install fastapi uvicorn pandas chromadb sentence-transformers
     echo.
     pause
     exit /b
@@ -28,13 +28,26 @@ if not exist "data\tmdb_5000_movies.csv" (
 )
 
 echo.
-echo Server will run at:
-echo http://127.0.0.1:8000
-echo.
-echo Swagger documentation:
-echo http://127.0.0.1:8000/docs
-echo.
+echo Starting FastAPI server...
+start "MovieSearch Server" cmd /k "venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000"
 
-"venv\Scripts\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
+echo.
+echo Waiting for server to start...
+timeout /t 10 /nobreak > nul
 
+echo.
+echo Opening Swagger documentation...
+start "" "http://127.0.0.1:8000/docs"
+
+echo.
+echo Opening frontend page...
+start "" "%~dp0frontend\index.html"
+
+echo.
+echo   Demo started successfully!
+echo.
+echo Server:  http://127.0.0.1:8000
+echo Swagger: http://127.0.0.1:8000/docs
+echo Frontend: frontend\index.html
+echo.
 pause
