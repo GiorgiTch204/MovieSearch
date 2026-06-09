@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html lang="ka">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    
     <title>AI Movie Search</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
+    <link rel="icon" type="image/png" href="./imgs/msIcon.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+GO:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
+
     <style>
-        body { 
+        body {
             font-family: 'Fira GO', sans-serif;
             background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
         }
@@ -28,38 +31,42 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-start items-center p-6 md:p-12 selection:bg-blue-500 selection:text-white">
-    
+
+<body
+    class="min-h-screen flex flex-col justify-start items-center p-6 md:p-12 selection:bg-blue-500 selection:text-white">
+
     <div class="w-full max-w-5xl mx-auto text-center mt-8">
-        <h1 class="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">
+        <h1
+            class="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">
             Movie Semantic Search
         </h1>
         <p class="mb-10 text-base md:text-lg text-slate-400 font-light max-w-xl mx-auto">
             აღწერეთ ფილმის სიუჟეტი და ჩვენი AI ძებნის სისტემა მოძებნის თქვენთვის საუკეთესო ვარიანტებს!
         </p>
 
-        <div class="flex flex-col sm:flex-row gap-3 mb-16 max-w-3xl mx-auto bg-slate-900/60 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
-            <input
-                id="queryInput"
-                type="text"
-                placeholder="მაგ: a space odyssey with psychological elements..."
-                class="w-full p-4 pl-5 rounded-xl bg-slate-950/80 text-slate-100 border border-slate-700 placeholder-slate-500 focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20 transition-all font-light"
-            />
-            <button onclick="searchMovies()" 
-                    class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-medium tracking-wide shadow-lg shadow-blue-500/20 active:scale-95 transition-all duration-150">
+        <div
+            class="flex flex-col sm:flex-row gap-3 mb-16 max-w-3xl mx-auto bg-slate-900/60 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
+            <input id="queryInput" type="text" placeholder="მაგ: a space odyssey with psychological elements..."
+                class="w-full p-4 pl-5 rounded-xl bg-slate-950/80 text-slate-100 border border-slate-700 placeholder-slate-500 focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20 transition-all font-light" />
+            <button onclick="searchMovies()"
+                class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-8 py-4 rounded-xl font-medium tracking-wide shadow-lg shadow-blue-500/20 active:scale-95 transition-all duration-150">
                 ძებნა
             </button>
         </div>
 
         <div id="loader" class="hidden flex flex-col items-center justify-center gap-3 mb-12">
             <div class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-            <div class="text-sm font-medium text-blue-400 tracking-wider animate-pulse">AI ეძებს საუკეთესო ვარიანტებს...</div>
+
+            <div class="text-sm font-medium text-blue-400 tracking-wider animate-pulse">
+                AI ეძებს საუკეთესო ვარიანტებს...
+            </div>
         </div>
 
         <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl mx-auto">
-            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>
