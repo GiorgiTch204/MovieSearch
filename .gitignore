@@ -1,37 +1,25 @@
-# Virtual environment
 venv/
 .venv/
 env/
 
-# Environment variables / secrets
 .env
 
-# ChromaDB generated vector database
-# This is generated locally and should not be uploaded to GitHub.
 backend/chroma_db/
 backend/chroma_db/**
 
-# Python cache files
 __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
 
-# Dataset
-# Dataset should be downloaded manually from Kaggle:
-# https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata
 data/tmdb_5000_movies.csv
 
-# Keep data folder structure, but not the large CSV
 !data/.gitkeep
 
-# OS files
 .DS_Store
 Thumbs.db
 
-# IDE / editor files
 .vscode/
 .idea/
 
-# Logs
 *.log

@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>AI Movie Search</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+GO:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fira+GO:wght@300;400;500;700&display=swap');
         body { 
             font-family: 'Fira GO', sans-serif;
             background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
         }
-        /* ფილმების ბარათების რბილი ჰოვერ ეფექტი */
+
         .movie-card {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
         .movie-card:hover {
             transform: translateY(-8px);
             box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(59 130 246 / 0.2);
@@ -28,7 +35,7 @@
             Movie Semantic Search
         </h1>
         <p class="mb-10 text-base md:text-lg text-slate-400 font-light max-w-xl mx-auto">
-            აღწერეთ როგორი ფილმის ნახვა გსურთ და ჩვენი AI ძებნის სისტემა მოძებნის თქვენთვის საუკეთესო ვარიანტებს!
+            აღწერეთ ფილმის სიუჟეტი და ჩვენი AI ძებნის სისტემა მოძებნის თქვენთვის საუკეთესო ვარიანტებს!
         </p>
 
         <div class="flex flex-col sm:flex-row gap-3 mb-16 max-w-3xl mx-auto bg-slate-900/60 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
@@ -49,7 +56,7 @@
             <div class="text-sm font-medium text-blue-400 tracking-wider animate-pulse">AI ეძებს საუკეთესო ვარიანტებს...</div>
         </div>
 
-        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl mx-auto">
             </div>
     </div>
 
