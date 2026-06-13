@@ -1,5 +1,5 @@
 async function searchMovies() {
-    const query = document.getElementById('queryInput').value;
+    const query = document.getElementById('queryInput').value.trim();
     const grid = document.getElementById('resultsGrid');
     const loader = document.getElementById('loader');
 
