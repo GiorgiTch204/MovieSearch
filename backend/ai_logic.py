@@ -67,6 +67,3 @@ def search_movies(query, top_k=5):
         })
 
     return formatted_results
-
-if __name__=="__main__":
-    print(search_movies("A movie about love and friendship"))
