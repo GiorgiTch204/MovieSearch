@@ -29,10 +29,10 @@ After successful activation, the terminal prompt should display the environment 
 Install the required libraries from the `requirements.txt` file:
 
 ```bash
-python -m pip install -r backend/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-This command installs all dependencies necessary for running the backend application, including FastAPI, Uvicorn, Sentence-Transformers, ChromaDB, Pandas, SQLAlchemy, passlib, and bcrypt.
+This command installs all dependencies necessary for running the backend application: FastAPI, Uvicorn, Pandas, ChromaDB, and Sentence-Transformers.
 
 ### 4. Run the FastAPI Development Server
 
