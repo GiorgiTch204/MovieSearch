@@ -36,26 +36,18 @@ MovieSearch Pro is a full-stack movie discovery platform combining hybrid semant
 
 ---
 
-## ⚙️ Environment Configuration
+## 📂 Datasets
 
-### 1. Backend (`.env` in project root)
+The application relies on two CSV datasets containing film metadata and overviews:
 
-Create a `.env` file in the root directory:
+1. **`tmdb_5000_movies.csv`**: Contains international films with metadata, plots, vote averages, and release dates.
+2. **`geocinema_movies.csv`**: Contains classic and archival Georgian cinema metadata (titles in Georgian and English, directors, cast members, studios, and plot summaries).
 
-```env
-# Database
-DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>?sslmode=require
+Both datasets are available in the repository:
+👉 [https://github.com/GiorgiTch204/csvs](https://github.com/GiorgiTch204/csvs)
 
-# JWT Authentication
-SECRET_KEY=your_super_secret_jwt_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
+Clone or download the CSV files into your project's `data/` directory:
 
-# External APIs
-TMDB_API_KEY=your_tmdb_api_key
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# Frontend URL
-FRONTEND_URL=http://localhost:3000
+```bash
+mkdir data
+# Download or place tmdb_5000_movies.csv and geocinema_movies.csv inside data/
