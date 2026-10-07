@@ -1,24 +1,605 @@
-from fastapi import FastAPI
+import os
+import json
+import urllib.request
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Query, HTTPException, Depends, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from sentence_transformers import SentenceTransformer
+import stripe
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 
-from backend.ai_logic import search_movies
+load_dotenv()
 
-app = FastAPI(title="Movie Semantic Search API")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Password hashing configuration
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "your-fallback-secret-key-32-chars-min")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 10080))
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# ----------------- PYDANTIC SCHEMAS -----------------
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    username: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username_or_email: str
+    password: str
+
+class WatchlistRequest(BaseModel):
+    movie_id: int
+
+class CreateCheckoutRequest(BaseModel):
+    user_id: int
+    user_email: str
+
+
+# ----------------- HELPER FUNCTIONS -----------------
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# ----------------- FASTAPI SETUP -----------------
+app = FastAPI(title="MovieSearch Pro API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
-    allow_methods=["*"],  
-    allow_headers=["*"],  
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-@app.get("/")
-def home():
-    return {"message": "Movie Semantic Search API is running perfectly!"}
+print("Loading multilingual embedding model...")
+model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
+
+def get_db():
+    raw_url = os.getenv("DATABASE_URL")
+    if not raw_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not set in environment")
+
+    db_url = raw_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    if "?" not in db_url:
+        db_url += "?sslmode=require"
+    elif "sslmode=" not in db_url:
+        db_url += "&sslmode=require"
+
+    conn = psycopg2.connect(db_url)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), conn=Depends(get_db)) -> Dict[str, Any]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token expired or invalid")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT id, username, email, is_pro FROM users WHERE id = %s;", (int(user_id),))
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+
+
+def format_movie_item(row: Dict[str, Any], score: float) -> Dict[str, Any]:
+    title = row.get("title_ka") or row.get("title") or "Untitled"
+
+    rel_year = row.get("release_year")
+    rel_date = row.get("release_date")
+    if rel_year:
+        year_str = str(rel_year)
+    elif rel_date:
+        year_str = str(rel_date)[:4]
+    else:
+        year_str = "N/A"
+
+    overview = row.get("overview")
+    if not overview or str(overview).strip().lower() in ["none", "nan", ""]:
+        parts = []
+        if row.get("director"):
+            parts.append(f"Director: {row['director']}")
+        if row.get("cast_members"):
+            cast_preview = ", ".join(str(row["cast_members"]).split(",")[:4])
+            parts.append(f"Cast: {cast_preview}")
+        if row.get("studio"):
+            parts.append(f"Studio: {row['studio']}")
+        overview = ". ".join(parts) if parts else "Archive collection"
+
+    raw_poster = row.get("poster_url") or row.get("poster_path")
+    poster_src = None
+    if raw_poster and "nophoto" not in str(raw_poster).lower():
+        if str(raw_poster).startswith("http"):
+            poster_src = str(raw_poster)
+        else:
+            poster_src = f"https://image.tmdb.org/t/p/w500{raw_poster}"
+
+    match_pct = int(min(99, max(25, score * 100)))
+
+    return {
+        "id": row.get("id"),
+        "source_id": row.get("source_id"),
+        "catalog_source": row.get("catalog_source", "tmdb"),
+        "title": title,
+        "title_ka": row.get("title_ka"),
+        "release_year": rel_year,
+        "release_date": year_str,
+        "vote_average": row.get("vote_average"),
+        "genre": row.get("genre"),
+        "overview": overview,
+        "director": row.get("director"),
+        "cast": row.get("cast_members"),
+        "studio": row.get("studio"),
+        "poster_path": poster_src,
+        "poster_url": poster_src,
+        "match_score": match_pct,
+    }
+
+
+# ----------------- SEARCH ENDPOINTS -----------------
 @app.get("/search")
-def search(query: str, limit: int = 10):
+@app.get("/api/search")
+@app.get("/api/movies/search")
+def search_movies(
+    q: str = Query(..., min_length=1),
+    semantic_weight: float = Query(0.5, ge=0.0, le=1.0),
+    catalog: Optional[str] = Query(None),
+    genre: Optional[str] = Query(None),
+    era: Optional[str] = Query(None),
+    min_rating: Optional[float] = Query(None),
+    limit: int = Query(24, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    conn=Depends(get_db),
+):
+    try:
+        kw_weight = max(0.01, 1.0 - semantic_weight)
+        sem_weight = max(0.01, semantic_weight)
 
-    results = search_movies(query, top_k=limit) 
+        q_emb = model.encode(q, normalize_embeddings=True).tolist()
+        vec_str = f"[{','.join(str(x) for x in q_emb)}]"
 
-    return {"results": results}
+        year_min, year_max = None, None
+        if era == "before_1990":
+            year_max = 1989
+        elif era == "1990s":
+            year_min, year_max = 1990, 1999
+        elif era == "2000s":
+            year_min, year_max = 2000, 2009
+        elif era == "2010_plus":
+            year_min = 2010
+
+        sql = """
+        WITH semantic_search AS (
+            SELECT id, 
+                   RANK() OVER (ORDER BY embedding <=> %(vec)s::vector) AS rank_semantic,
+                   (1.0 - (embedding <=> %(vec)s::vector)) AS sim_score
+            FROM movies
+            WHERE (%(catalog)s IS NULL OR catalog_source = %(catalog)s)
+              AND (%(year_min)s IS NULL OR release_year >= %(year_min)s)
+              AND (%(year_max)s IS NULL OR release_year <= %(year_max)s)
+              AND (%(genre)s IS NULL OR genre ILIKE %(genre_like)s)
+              AND (%(min_rating)s IS NULL OR vote_average >= %(min_rating)s OR vote_average IS NULL)
+            LIMIT 60
+        ),
+        text_search AS (
+            SELECT id, 
+                   RANK() OVER (ORDER BY ts_rank_cd(fts_doc, plainto_tsquery('simple', %(q)s)) DESC) AS rank_text,
+                   ts_rank_cd(fts_doc, plainto_tsquery('simple', %(q)s)) AS text_score
+            FROM movies
+            WHERE (
+                fts_doc @@ plainto_tsquery('simple', %(q)s) 
+                OR title ILIKE %(q_like)s 
+                OR title_ka ILIKE %(q_like)s
+                OR director ILIKE %(q_like)s
+            )
+              AND (%(catalog)s IS NULL OR catalog_source = %(catalog)s)
+              AND (%(year_min)s IS NULL OR release_year >= %(year_min)s)
+              AND (%(year_max)s IS NULL OR release_year <= %(year_max)s)
+              AND (%(genre)s IS NULL OR genre ILIKE %(genre_like)s)
+              AND (%(min_rating)s IS NULL OR vote_average >= %(min_rating)s OR vote_average IS NULL)
+            LIMIT 60
+        )
+        SELECT 
+            m.*,
+            (
+                COALESCE((%(sem_w)s * (1.0 / (60 + s.rank_semantic))), 0.0) +
+                COALESCE((%(kw_w)s * (1.0 / (60 + t.rank_text))), 0.0)
+            ) AS hybrid_score,
+            COALESCE(s.sim_score, 0.45) AS raw_sim
+        FROM movies m
+        LEFT JOIN semantic_search s ON m.id = s.id
+        LEFT JOIN text_search t ON m.id = t.id
+        WHERE s.id IS NOT NULL OR t.id IS NOT NULL
+        ORDER BY hybrid_score DESC
+        LIMIT %(limit)s OFFSET %(offset)s;
+        """
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                sql,
+                {
+                    "vec": vec_str,
+                    "q": q,
+                    "q_like": f"%{q}%",
+                    "sem_w": sem_weight,
+                    "kw_w": kw_weight,
+                    "catalog": catalog,
+                    "genre": genre,
+                    "genre_like": f"%{genre}%" if genre else None,
+                    "year_min": year_min,
+                    "year_max": year_max,
+                    "min_rating": min_rating,
+                    "limit": limit,
+                    "offset": offset,
+                },
+            )
+            rows = cur.fetchall()
+
+        movies = []
+        for r in rows:
+            raw_sim = float(r.get("raw_sim", 0.45))
+            boost = 0.25 if r.get("hybrid_score", 0) > 0.012 else 0.05
+            final_score = min(0.98, raw_sim + boost)
+            movies.append(format_movie_item(r, final_score))
+
+        return {"results": movies, "total": len(movies)}
+
+    except Exception as e:
+        print(f"Search Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ----------------- MOVIE DETAIL ENDPOINTS -----------------
+@app.get("/api/movies/{movie_id}")
+def get_movie_details(movie_id: int, conn=Depends(get_db)):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT * FROM movies WHERE id = %s;", (movie_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Movie not found")
+
+        movie = format_movie_item(row, 1.0)
+
+        trailer_key = None
+        cast_list = []
+        backdrop_path = row.get("backdrop_path")
+
+        target_tmdb_id = (
+            row.get("source_id")
+            or row.get("tmdb_id")
+            or (row.get("id") if row.get("catalog_source") == "tmdb" else None)
+        )
+
+        tmdb_key = os.getenv("TMDB_API_KEY")
+
+        if row.get("catalog_source") == "tmdb" and target_tmdb_id and tmdb_key:
+            try:
+                # 1. Fetch live YouTube trailer
+                url = f"https://api.themoviedb.org/3/movie/{target_tmdb_id}/videos?api_key={tmdb_key}"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=4) as resp:
+                    vdata = json.loads(resp.read().decode())
+                    results = vdata.get("results", [])
+                    for v in results:
+                        if v.get("site") == "YouTube" and v.get("type") in ["Trailer", "Teaser"]:
+                            trailer_key = v.get("key")
+                            break
+                    if not trailer_key and results:
+                        for v in results:
+                            if v.get("site") == "YouTube":
+                                trailer_key = v.get("key")
+                                break
+
+                # 2. Fetch backdrop and cast credits
+                url_c = f"https://api.themoviedb.org/3/movie/{target_tmdb_id}?api_key={tmdb_key}&append_to_response=credits"
+                req_c = urllib.request.Request(url_c, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req_c, timeout=4) as resp:
+                    ddata = json.loads(resp.read().decode())
+                    if not backdrop_path:
+                        backdrop_path = ddata.get("backdrop_path")
+                    if ddata.get("credits", {}).get("cast"):
+                        cast_list = [c["name"] for c in ddata["credits"]["cast"][:6]]
+            except Exception as e:
+                print(f"TMDb API lookup error: {e}")
+
+        # Fallback cast parsing for Georgian/Archive films
+        if not cast_list and row.get("cast_members"):
+            cast_list = [c.strip() for c in str(row["cast_members"]).split(",") if c.strip()][:6]
+
+        return {
+            **movie,
+            "trailer": trailer_key,
+            "backdrop_path": backdrop_path,
+            "cast": cast_list,
+            "genres": [g.strip() for g in str(row.get("genre") or "").split(",") if g.strip()],
+        }
+
+
+@app.get("/api/movies/{movie_id}/similar")
+def get_similar_movies(movie_id: int, conn=Depends(get_db)):
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id, embedding, catalog_source, genre FROM movies WHERE id = %s;", (movie_id,))
+            target = cur.fetchone()
+
+            if not target:
+                return []
+
+            target_embedding = target.get("embedding")
+
+            if target_embedding is not None:
+                sql = """
+                SELECT m.*, (1.0 - (m.embedding <=> %s::vector)) AS sim_score
+                FROM movies m
+                WHERE m.id != %s
+                  AND m.embedding IS NOT NULL
+                ORDER BY m.embedding <=> %s::vector ASC
+                LIMIT 6;
+                """
+                cur.execute(sql, (target_embedding, movie_id, target_embedding))
+                rows = cur.fetchall()
+            else:
+                genre = target.get("genre")
+                sql = """
+                SELECT m.*, 0.75 AS sim_score
+                FROM movies m
+                WHERE m.id != %s
+                  AND (%s IS NULL OR m.genre ILIKE %s)
+                ORDER BY m.vote_average DESC NULLS LAST
+                LIMIT 6;
+                """
+                genre_match = f"%{genre.split(',')[0].strip()}%" if genre else None
+                cur.execute(sql, (movie_id, genre_match, genre_match))
+                rows = cur.fetchall()
+
+            return [format_movie_item(r, float(r.get("sim_score", 0.8))) for r in rows]
+
+    except Exception as e:
+        print(f"Error fetching similar movies for ID {movie_id}: {e}")
+        return []
+
+
+# ----------------- WATCHLIST ENDPOINTS -----------------
+@app.post("/api/watchlist")
+def add_to_watchlist(
+    req: WatchlistRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO watchlist (user_id, movie_id)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING;
+            """,
+            (current_user["id"], req.movie_id),
+        )
+        conn.commit()
+    return {"status": "success"}
+
+
+@app.delete("/api/watchlist")
+def remove_from_watchlist(
+    req: WatchlistRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM watchlist 
+            WHERE user_id = %s AND movie_id = %s;
+            """,
+            (current_user["id"], req.movie_id),
+        )
+        conn.commit()
+    return {"status": "removed"}
+
+
+# ----------------- STRIPE / PAYMENTS -----------------
+@app.post("/api/checkout/create-session")
+def create_checkout_session(payload: CreateCheckoutRequest):
+    secret_key = os.getenv("STRIPE_SECRET_KEY")
+    if not secret_key or "your_secret_key" in secret_key:
+        print("[Stripe Error] STRIPE_SECRET_KEY is missing or contains placeholder text in .env")
+        raise HTTPException(
+            status_code=500,
+            detail="Stripe secret key not configured in .env file.",
+        )
+
+    stripe.api_key = secret_key
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            customer_email=payload.user_email,
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": "MovieSearch Pro Pass",
+                            "description": "Unlimited Semantic AI Search & Georgian Archive Access",
+                        },
+                        "unit_amount": 999,  # $9.99 USD in cents
+                    },
+                    "quantity": 1,
+                }
+            ],
+            mode="payment",
+            metadata={
+                "user_id": str(payload.user_id),
+            },
+            success_url=f"{frontend_url}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{frontend_url}?payment=cancelled",
+        )
+        return {"url": checkout_session.url}
+    except Exception as e:
+        print(f"[Stripe Checkout Error]: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/webhook/stripe")
+async def stripe_webhook(request: Request, conn=Depends(get_db)):
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        if webhook_secret and sig_header:
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+        else:
+            event = json.loads(payload.decode("utf-8"))
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook payload or signature")
+
+    if event.get("type") == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session.get("metadata", {}).get("user_id")
+
+        if user_id:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE users SET is_pro = TRUE WHERE id = %s;", (int(user_id),))
+                cur.execute(
+                    """
+                    INSERT INTO payments (user_id, stripe_session_id, amount, currency, status)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (stripe_session_id) DO NOTHING;
+                    """,
+                    (
+                        int(user_id),
+                        session.get("id"),
+                        session.get("amount_total"),
+                        session.get("currency"),
+                        session.get("payment_status"),
+                    ),
+                )
+                conn.commit()
+                print(f"Payment successful: User {user_id} upgraded to Pro.")
+
+    return {"status": "success"}
+
+
+# ----------------- AUTHENTICATION ENDPOINTS -----------------
+@app.post("/api/auth/register")
+def register(payload: RegisterRequest, conn=Depends(get_db)):
+    email = payload.email.strip().lower()
+    if not email or not payload.password:
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s;", (email,))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+
+        hashed = get_password_hash(payload.password)
+        cur.execute(
+            """
+            INSERT INTO users (username, email, hashed_password, is_pro) 
+            VALUES (%s, %s, %s, FALSE) 
+            RETURNING id, username, email, is_pro;
+            """,
+            (payload.username, email, hashed),
+        )
+        user = cur.fetchone()
+        conn.commit()
+
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user.get("username"),
+            "email": user["email"],
+            "is_pro": user["is_pro"],
+        },
+    }
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest, conn=Depends(get_db)):
+    login_id = payload.username_or_email.strip().lower()
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT id, username, email, hashed_password, is_pro 
+            FROM users 
+            WHERE LOWER(email) = %s OR LOWER(username) = %s;
+            """,
+            (login_id, login_id),
+        )
+        user = cur.fetchone()
+
+        if not user or not user.get("hashed_password"):
+            raise HTTPException(status_code=401, detail="Invalid username/email or password")
+
+        if not verify_password(payload.password, user["hashed_password"]):
+            raise HTTPException(status_code=401, detail="Invalid username/email or password")
+
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+
+    user_data = {
+        "id": user["id"],
+        "username": user.get("username"),
+        "email": user["email"],
+        "is_pro": user.get("is_pro", False),
+    }
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user_data,
+    }
+
+
+@app.get("/api/auth/me")
+def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
+    return current_user
+
+
+@app.post("/api/auth/logout")
+def logout():
+    return {"message": "Logged out successfully"}
