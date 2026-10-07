@@ -137,7 +137,7 @@ export default function Home() {
         <PricingModal
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
-          user={user || { id: 1, email: "guest@example.com" }}
+          user={user}
         />
 
         {/* Results Area */}
@@ -193,7 +193,7 @@ export default function Home() {
       <PricingModal
         isOpen={isPricingOpen}
         onClose={() => setIsPricingOpen(false)}
-        user={user || { id: 1, email: "guest@example.com" }}
+        user={user}
       />
 
       <AuthModal

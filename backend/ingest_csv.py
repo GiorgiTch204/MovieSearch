@@ -7,9 +7,9 @@ from psycopg2.extras import execute_values
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
-# Database connection
-DATABASE_URL = "postgresql://neondb_owner:npg_IjCEriXM8W0S@ep-lingering-water-b1xllb5n-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+from db_config import get_db_url
 
+DATABASE_URL = get_db_url()
 # Resolve path to CSV file
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_PATH = BASE_DIR / "data" / "tmdb_5000_movies.csv"
@@ -56,7 +56,7 @@ def main():
 
     # Load SentenceTransformer model
     print("Loading embedding model (all-MiniLM-L6-v2)...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
     # Construct context texts
     print("Building composite semantic text strings...")

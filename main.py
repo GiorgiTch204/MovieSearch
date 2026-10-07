@@ -25,7 +25,13 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-fallback-secret-key-32-chars-min")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "SECRET_KEY missing or too short (need >= 32 chars). "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 10080))
 
@@ -43,11 +49,6 @@ class LoginRequest(BaseModel):
 
 class WatchlistRequest(BaseModel):
     movie_id: int
-
-class CreateCheckoutRequest(BaseModel):
-    user_id: int
-    user_email: str
-
 
 # ----------------- HELPER FUNCTIONS -----------------
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -437,7 +438,7 @@ def remove_from_watchlist(
 
 # ----------------- STRIPE / PAYMENTS -----------------
 @app.post("/api/checkout/create-session")
-def create_checkout_session(payload: CreateCheckoutRequest):
+def create_checkout_session(current_user: Dict[str, Any] = Depends(get_current_user)):
     secret_key = os.getenv("STRIPE_SECRET_KEY")
     if not secret_key or "your_secret_key" in secret_key:
         print("[Stripe Error] STRIPE_SECRET_KEY is missing or contains placeholder text in .env")
@@ -452,7 +453,7 @@ def create_checkout_session(payload: CreateCheckoutRequest):
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            customer_email=payload.user_email,
+            customer_email=current_user["email"],
             line_items=[
                 {
                     "price_data": {
@@ -468,8 +469,9 @@ def create_checkout_session(payload: CreateCheckoutRequest):
             ],
             mode="payment",
             metadata={
-                "user_id": str(payload.user_id),
+                "user_id": str(current_user["id"]),
             },
+            client_reference_id=str(current_user["id"]),
             success_url=f"{frontend_url}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{frontend_url}?payment=cancelled",
         )
@@ -485,38 +487,47 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
+    if not webhook_secret:
+        print("[Stripe] STRIPE_WEBHOOK_SECRET is not set - refusing to process webhook.")
+        raise HTTPException(status_code=500, detail="Webhook secret not configured")
+
+    if not sig_header:
+        raise HTTPException(status_code=400, detail="Missing stripe-signature header")
+
     try:
-        if webhook_secret and sig_header:
-            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-        else:
-            event = json.loads(payload.decode("utf-8"))
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except Exception as e:
-        print(f"Webhook error: {e}")
+        print(f"Webhook signature verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook payload or signature")
-
+    
     if event.get("type") == "checkout.session.completed":
-        session = event["data"]["object"]
-        user_id = session.get("metadata", {}).get("user_id")
+            session = event["data"]["object"]
+            user_id = session.get("metadata", {}).get("user_id")
 
-        if user_id:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE users SET is_pro = TRUE WHERE id = %s;", (int(user_id),))
-                cur.execute(
-                    """
-                    INSERT INTO payments (user_id, stripe_session_id, amount, currency, status)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (stripe_session_id) DO NOTHING;
-                    """,
-                    (
-                        int(user_id),
-                        session.get("id"),
-                        session.get("amount_total"),
-                        session.get("currency"),
-                        session.get("payment_status"),
-                    ),
-                )
-                conn.commit()
-                print(f"Payment successful: User {user_id} upgraded to Pro.")
+            if session.get("payment_status") != "paid":
+                print(f"Ignoring unpaid session {session.get('id')}")
+                return {"status": "ignored"}
+
+            if user_id:
+
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE users SET is_pro = TRUE WHERE id = %s;", (int(user_id),))
+                    cur.execute(
+                        """
+                        INSERT INTO payments (user_id, stripe_session_id, amount, currency, status)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (stripe_session_id) DO NOTHING;
+                        """,
+                        (
+                            int(user_id),
+                            session.get("id"),
+                            session.get("amount_total"),
+                            session.get("currency"),
+                            session.get("payment_status"),
+                        ),
+                    )
+                    conn.commit()
+                    print(f"Payment successful: User {user_id} upgraded to Pro.")
 
     return {"status": "success"}
 

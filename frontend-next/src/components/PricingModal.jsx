@@ -3,29 +3,33 @@
 import { useState } from "react";
 import { Check, Sparkles, X, Loader2, ShieldCheck } from "lucide-react";
 
-export function PricingModal({
-  isOpen,
-  onClose,
-  user = { id: 1, email: "user@example.com" },
-}) {
+export function PricingModal({ isOpen, onClose, user }) {
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const handleCheckout = async () => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
+    if (!token) {
+      alert("Please sign in before upgrading to Pro.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:8000/api/checkout/create-session",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: user?.id || 1,
-            user_email: user?.email || "user@example.com",
-          }),
+      const apiUrl = (
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+      ).replace(/\/$/, "");
+
+      const res = await fetch(`${apiUrl}/api/checkout/create-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       const data = await res.json();
       if (data.url) {

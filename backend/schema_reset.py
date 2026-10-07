@@ -1,6 +1,11 @@
 import psycopg2
 
-DATABASE_URL = "postgresql://neondb_owner:npg_IjCEriXM8W0S@ep-lingering-water-b1xllb5n-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+from db_config import get_db_url
+
+DATABASE_URL = get_db_url()
+
+if input("This DROPS the movies and watchlists tables. Type 'RESET' to continue: ") != "RESET":
+    raise SystemExit("Aborted.")
 
 schema_sql = """
 -- 1. Enable extensions

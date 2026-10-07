@@ -4,8 +4,10 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from tqdm import tqdm
 
-DATABASE_URL = "postgresql://neondb_owner:npg_IjCEriXM8W0S@ep-lingering-water-b1xllb5n-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-TMDB_API_KEY = "8265bd1679663a7ea12ac168da84d2e8"
+from db_config import get_db_url, get_tmdb_key
+
+DATABASE_URL = get_db_url()
+TMDB_API_KEY = get_tmdb_key()
 
 def backfill():
     conn = psycopg2.connect(DATABASE_URL)
