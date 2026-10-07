@@ -57,7 +57,7 @@ def main():
     # Load SentenceTransformer model
     print("Loading embedding model (all-MiniLM-L6-v2)...")
     model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-    data = df.to_dict(orient="records")
+
     # Construct context texts
     print("Building composite semantic text strings...")
     context_texts = [
