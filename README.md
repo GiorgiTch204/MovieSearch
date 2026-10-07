@@ -1,118 +1,61 @@
-## Installation and Project Setup
+# MovieSearch Pro 🎬
 
-Before running the application, it is recommended to create and activate a virtual environment in order to isolate the project dependencies from the global Python environment.
+MovieSearch Pro is a full-stack movie discovery platform combining hybrid semantic vector search, dual catalog integration (Georgian Cinema Archives + International TMDb), JWT-based user authentication, and a Stripe payment gateway for Pro subscriptions.
 
-### 1. Create a Virtual Environment
+---
 
-If the virtual environment does not already exist, create it with:
+## 🚀 Key Features
 
-```bash
-python -m venv venv
-````
+* **Dual Catalog Architecture**:
+  * **TMDb (International)**: Automatic YouTube trailer embeds, cast lists, ratings, and high-res backdrops.
+  * **Georgian Cinema Archive (Geocinema)**: Tailored archival UI highlighting Georgian titles, directors, studios, and historical production data with poster fallbacks.
+* **Hybrid Semantic & Keyword Search**: Powered by PostgreSQL + `pgvector` with cosine similarity (`<=>`) over 384-dimensional Sentence-BERT embeddings combined with keyword matching.
+* **Vector-Based Movie Recommendations**: Recommends semantically similar films across both catalogs on click.
+* **Authentication & User Management**: Secure registration, login, and session persistence using JWT tokens, bcrypt password hashing, and local storage.
+* **Stripe Pro Pass Payments**: Hosted Stripe Checkout flow with webhook verification to unlock unlimited searches and Pro features.
 
-### 2. Activate the Virtual Environment
+---
 
-On Windows, activate the virtual environment using:
+## 🛠 Tech Stack
 
-```bash
-venv\Scripts\activate
-```
+* **Frontend**: Next.js 16 (App Router, Turbopack), Tailwind CSS, Lucide React
+* **Backend**: FastAPI, Uvicorn, Pydantic, Python-JOSE, Passlib / Bcrypt
+* **Database & Vector Store**: PostgreSQL with `pgvector` (hosted on Neon) via `psycopg2`
+* **External APIs**: TMDb API (trailers, credits, artwork), Stripe API (checkout & webhooks)
 
-After successful activation, the terminal prompt should display the environment name, for example:
+---
 
-```bash
-(venv) D:\Giorgi.Cheishvili\Desktop\MovieSearch>
-```
+## 📋 Prerequisites
 
-### 3. Install Project Dependencies
+* **Python**: 3.10+
+* **Node.js**: 18.0+ and `npm`
+* **PostgreSQL**: Neon or any PostgreSQL instance with `pgvector` support
+* **API Keys**:
+  * [TMDb API Key](https://www.themoviedb.org/documentation/api)
+  * [Stripe Test API Keys](https://dashboard.stripe.com/test/apikeys)
 
-Install the required libraries from the `requirements.txt` file:
+---
 
-```bash
-python -m pip install -r requirements.txt
-```
+## ⚙️ Environment Configuration
 
-This command installs all dependencies necessary for running the backend application: FastAPI, Uvicorn, Pandas, ChromaDB, and Sentence-Transformers.
+### 1. Backend (`.env` in project root)
 
-### 4. Run the FastAPI Development Server
+Create a `.env` file in the root directory:
 
-To start the backend server, run:
+```env
+# Database
+DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>?sslmode=require
 
-```bash
-python -m uvicorn main:app --reload
-```
+# JWT Authentication
+SECRET_KEY=your_super_secret_jwt_key_here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
-The `--reload` option enables automatic server reloading whenever changes are made to the source code.
+# External APIs
+TMDB_API_KEY=your_tmdb_api_key
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
-Alternatively, on Windows, the server can be started by running:
-
-```bash
-run.bat
-```
-
-Once the server is running, the API documentation can be accessed at:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-The root endpoint can be checked at:
-
-```text
-http://127.0.0.1:8000
-```
-
-Example search request:
-
-```text
-http://127.0.0.1:8000/search?query=space exploration and black holes&limit=10
-```
-
-```
-```
-
-### Dataset Note
-
-This project uses the **TMDB 5000 Movie Dataset** as the source dataset for movie information.
-
-Dataset link:
-
-```text
-https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata
-````
-
-After downloading the dataset, make sure the CSV file is placed in the following location:
-
-```text
-data/tmdb_5000_movies.csv
-```
-
-The application expects this CSV file to contain the required movie information, especially:
-
-```text
-id
-original_title
-overview
-```
-
-The `overview` column is used to generate semantic embeddings with the Sentence-BERT model. These embeddings are then stored locally in ChromaDB.
-
-On the first run, the system may take some time to process the dataset and create the vector database. After this process is completed, the generated ChromaDB files are saved in:
-
-```text
-backend/chroma_db/
-```
-
-On future runs, the application loads the existing ChromaDB database from disk, so the startup process becomes faster.
-
-If the search results look incorrect or only one movie is returned, delete the generated folder:
-
-```text
-backend/chroma_db/
-```
-
-Then run the server again. The system will rebuild the vector database from the CSV dataset.
-
-```
-```
-
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
