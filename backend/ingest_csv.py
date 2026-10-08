@@ -64,6 +64,7 @@ def main():
         build_context(row["title"], row["genres_list"], row["tagline"], row["overview"])
         for _, row in df.iterrows()
     ]
+    
 
     # Generate embeddings
     print("Generating dense vector embeddings (this takes ~1-2 minutes on CPU)...")
