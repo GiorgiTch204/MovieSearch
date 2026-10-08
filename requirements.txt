@@ -10,3 +10,4 @@ numpy
 passlib[bcrypt]
 python-jose[cryptography]
 stripe
+bcrypt<4.1
