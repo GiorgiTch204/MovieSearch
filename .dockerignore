@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+frontend-next/
+data/geocinema_pages/
+data/*.csv
+.git/
+.env
+*.log
