@@ -25,3 +25,10 @@ Thumbs.db
 *.log
 
 data/geocinema_pages/
+
+models/
+
+.env.*
+!.env.example
+*.key
+*.pem

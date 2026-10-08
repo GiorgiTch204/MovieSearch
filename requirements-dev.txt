@@ -1,0 +1,7 @@
+-r requirements.txt
+sentence-transformers
+pandas
+tqdm
+requests
+beautifulsoup4
+httpx

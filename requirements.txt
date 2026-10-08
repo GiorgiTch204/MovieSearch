@@ -1,29 +1,12 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-
-# Web API
 fastapi
 uvicorn[standard]
 pydantic
-
-# Config
 python-dotenv
-
-# Database
 psycopg2-binary
-
-# Embeddings
-sentence-transformers
-
-# Auth
+onnxruntime
+tokenizers
+huggingface_hub
+numpy
 passlib[bcrypt]
 python-jose[cryptography]
-
-# Payments
 stripe
-
-# Data pipeline / scripts
-pandas
-tqdm
-requests
-beautifulsoup4
-httpx

@@ -11,7 +11,6 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from sentence_transformers import SentenceTransformer
 import stripe
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -81,9 +80,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("Loading multilingual embedding model...")
-model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+from backend.encoder import OnnxEncoder
 
+MODEL_DIR = os.getenv("MODEL_DIR", "models")
+print("Loading int8 ONNX embedding model...")
+model = OnnxEncoder(
+    os.path.join(MODEL_DIR, "onnx", "model_quantized.onnx"),
+    os.path.join(MODEL_DIR, "tokenizer.json"),
+)
 
 def get_db():
     raw_url = os.getenv("DATABASE_URL")

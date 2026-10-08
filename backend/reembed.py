@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, execute_batch
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+import sys
 
 from db_config import get_db_url
 
@@ -59,8 +60,18 @@ def main():
         print(f"Loaded {len(rows)} movies.")
         texts = [build_context(r) for r in rows]
 
-        print(f"Loading {MODEL_NAME} (downloads ~470MB on first run)...")
-        model = SentenceTransformer(MODEL_NAME)
+        if "--onnx" in sys.argv:
+            from encoder import OnnxEncoder
+
+            print("Loading int8 ONNX encoder (models/)...")
+            model = OnnxEncoder(
+                "models/onnx/model_quantized.onnx", "models/tokenizer.json"
+            )
+        else:
+            from sentence_transformers import SentenceTransformer
+
+            print(f"Loading {MODEL_NAME} fp32 (downloads ~470MB on first run)...")
+            model = SentenceTransformer(MODEL_NAME)
 
         print("Encoding...")
         updates = []
