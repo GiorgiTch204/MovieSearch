@@ -47,8 +47,6 @@ class LoginRequest(BaseModel):
     username_or_email: str
     password: str
 
-class WatchlistRequest(BaseModel):
-    movie_id: int
 
 # ----------------- HELPER FUNCTIONS -----------------
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -181,7 +179,7 @@ def format_movie_item(row: Dict[str, Any], score: float) -> Dict[str, Any]:
 @app.get("/api/movies/search")
 def search_movies(
     q: str = Query(..., min_length=1),
-    semantic_weight: float = Query(0.5, ge=0.0, le=1.0),
+        semantic_weight: float = Query(0.25, ge=0.0, le=1.0),
     catalog: Optional[str] = Query(None),
     genre: Optional[str] = Query(None),
     era: Optional[str] = Query(None),
@@ -399,9 +397,29 @@ def get_similar_movies(movie_id: int, conn=Depends(get_db)):
 
 
 # ----------------- WATCHLIST ENDPOINTS -----------------
-@app.post("/api/watchlist")
+@app.get("/api/watchlist")
+def get_watchlist(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT m.*
+            FROM watchlist w
+            JOIN movies m ON m.id = w.movie_id
+            WHERE w.user_id = %s
+            ORDER BY w.added_at DESC;
+            """,
+            (current_user["id"],),
+        )
+        rows = cur.fetchall()
+    return [format_movie_item(r, 1.0) for r in rows]
+
+
+@app.post("/api/watchlist/{movie_id}")
 def add_to_watchlist(
-    req: WatchlistRequest,
+    movie_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user),
     conn=Depends(get_db),
 ):
@@ -410,30 +428,28 @@ def add_to_watchlist(
             """
             INSERT INTO watchlist (user_id, movie_id)
             VALUES (%s, %s)
-            ON CONFLICT DO NOTHING;
+            ON CONFLICT (user_id, movie_id) DO NOTHING;
             """,
-            (current_user["id"], req.movie_id),
+            (current_user["id"], movie_id),
         )
         conn.commit()
-    return {"status": "success"}
+    return {"status": "added", "movie_id": movie_id}
 
 
-@app.delete("/api/watchlist")
+@app.delete("/api/watchlist/{movie_id}")
 def remove_from_watchlist(
-    req: WatchlistRequest,
+    movie_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user),
     conn=Depends(get_db),
 ):
     with conn.cursor() as cur:
         cur.execute(
-            """
-            DELETE FROM watchlist 
-            WHERE user_id = %s AND movie_id = %s;
-            """,
-            (current_user["id"], req.movie_id),
+            "DELETE FROM watchlist WHERE user_id = %s AND movie_id = %s;",
+            (current_user["id"], movie_id),
         )
         conn.commit()
-    return {"status": "removed"}
+    return {"status": "removed", "movie_id": movie_id}
+
 
 
 # ----------------- STRIPE / PAYMENTS -----------------

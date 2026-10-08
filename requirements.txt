@@ -1,5 +1,27 @@
+# Web API
 fastapi
-uvicorn
-pandas
-chromadb
+uvicorn[standard]
+pydantic
+
+# Config
+python-dotenv
+
+# Database
+psycopg2-binary
+
+# Embeddings
 sentence-transformers
+
+# Auth
+passlib[bcrypt]
+python-jose[cryptography]
+
+# Payments
+stripe
+
+# Data pipeline / scripts
+pandas
+tqdm
+requests
+beautifulsoup4
+httpx

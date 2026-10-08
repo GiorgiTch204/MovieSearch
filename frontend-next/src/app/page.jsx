@@ -10,7 +10,9 @@ import FilterBar from "@/components/FilterBar";
 import { PricingModal } from "@/components/PricingModal";
 
 // const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const API_BASE = "http://localhost:8000";
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -26,10 +28,66 @@ export default function Home() {
     genre: "",
     era: "",
     minRating: "",
-    semanticWeight: 0.5,
+    semanticWeight: 0.25,
   });
 
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+
+  const [watchlistIds, setWatchlistIds] = useState([]);
+
+  // Restore the session from the stored token on first load
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    fetch(`${API_BASE}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((userData) => {
+        if (userData) setUser(userData);
+        else localStorage.removeItem("auth_token");
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load the user's watchlist whenever the signed-in user changes
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!user || !token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWatchlistIds([]);
+      return;
+    }
+    fetch(`${API_BASE}/api/watchlist`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => setWatchlistIds(rows.map((m) => m.id)))
+      .catch(() => {});
+  }, [user]);
+
+  const handleToggleWatchlist = async (movieId) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setIsAuthOpen(true);
+      return;
+    }
+    const inList = watchlistIds.includes(movieId);
+    try {
+      const res = await fetch(`${API_BASE}/api/watchlist/${movieId}`, {
+        method: inList ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setWatchlistIds((prev) =>
+          inList ? prev.filter((id) => id !== movieId) : [...prev, movieId],
+        );
+      }
+    } catch (err) {
+      console.error("Watchlist toggle failed:", err);
+    }
+  };
 
   const fetchMovies = useCallback(async () => {
     if (!query.trim()) {
@@ -124,22 +182,6 @@ export default function Home() {
           <FilterBar filters={filters} setFilters={setFilters} />
         </div>
 
-        {/* Modals */}
-        {selectedMovie && (
-          <MovieModal
-            movie={selectedMovie}
-            onClose={() => setSelectedMovie(null)}
-            onSelectMovie={(m) => setSelectedMovie(m)}
-            user={user}
-          />
-        )}
-
-        <PricingModal
-          isOpen={isPricingOpen}
-          onClose={() => setIsPricingOpen(false)}
-          user={user}
-        />
-
         {/* Results Area */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
@@ -187,6 +229,8 @@ export default function Home() {
           onClose={() => setSelectedMovie(null)}
           onSelectMovie={(nextMovie) => setSelectedMovie(nextMovie)}
           user={user}
+          isInWatchlist={watchlistIds.includes(selectedMovie.id)}
+          onToggleWatchlist={handleToggleWatchlist}
         />
       )}
 

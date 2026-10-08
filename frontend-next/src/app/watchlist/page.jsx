@@ -42,19 +42,18 @@ export default function WatchlistPage() {
     loadWatchlist();
   }, []);
 
-  const handleToggleWatchlist = async (tmdbId) => {
+  const handleToggleWatchlist = async (movieId) => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
-      const res = await fetch(`${apiUrl}/api/watchlist/${tmdbId}`, {
-        method: "POST",
-        credentials: "include",
+      const res = await fetch(`${apiUrl}/api/watchlist/${movieId}`, {
+        method: "DELETE",
         headers: headers,
       });
       if (res.ok) {
-        setMovies((prev) => prev.filter((m) => m.tmdb_id !== tmdbId));
+        setMovies((prev) => prev.filter((m) => m.id !== movieId));
         setSelectedMovie(null);
       }
     } catch (err) {

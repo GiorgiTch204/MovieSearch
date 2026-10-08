@@ -36,8 +36,8 @@ export function MovieModal({
     const loadData = async () => {
       try {
         const [resDetails, resSimilar] = await Promise.all([
-          fetch(`http://localhost:8000/api/movies/${movie.id}`),
-          fetch(`http://localhost:8000/api/movies/${movie.id}/similar`),
+          fetch(`${API_BASE}/api/movies/${movie.id}`),
+          fetch(`${API_BASE}/api/movies/${movie.id}/similar`),
         ]);
 
         if (resDetails.ok && isMounted) {
