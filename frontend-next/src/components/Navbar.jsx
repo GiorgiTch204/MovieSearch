@@ -2,7 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Clapperboard, Bookmark, User, LogOut, Sparkles } from "lucide-react";
+import {
+  Clapperboard,
+  Bookmark,
+  User,
+  LogOut,
+  Sparkles,
+  ShieldCheck,
+} from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar } from "@/components/Avatar";
@@ -92,6 +99,15 @@ export const Navbar = ({
                 className="px-3 py-1.5 rounded-xl bg-surface-1 border border-line  text-xs font-semibold text-ink hover:text-ink hover:border-line transition flex items-center gap-1.5"
               >
                 <Bookmark className="w-3.5 h-3.5" /> Watchlist
+              </Link>
+            )}
+
+            {currentUser?.is_admin && (
+              <Link
+                href="/admin"
+                className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" /> Admin
               </Link>
             )}
 

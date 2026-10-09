@@ -121,9 +121,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), conn=Depends(get_db)) 
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
-            "SELECT id, username, email, is_pro, created_at, "
+            "SELECT id, username, email, is_pro, is_admin, created_at, "
             "(avatar IS NOT NULL) AS has_avatar, avatar_updated_at "
             "FROM users WHERE id = %s;",
+            
+            
             (int(user_id),),
         )
         user = cur.fetchone()
@@ -131,6 +133,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), conn=Depends(get_db)) 
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
+    
+
+def get_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """Like get_current_user, but 403s for anyone who is not an admin."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
 
 def format_movie_item(row: Dict[str, Any], score: float) -> Dict[str, Any]:
     title = row.get("title_ka") or row.get("title") or "Untitled"
@@ -941,3 +950,227 @@ def get_avatar(user_id: int, conn=Depends(get_db)):
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+# ============================================================
+# ADMIN  -- every route below is gated by get_admin_user
+# ============================================================
+@app.get("/api/admin/overview")
+def admin_overview(
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+              (SELECT count(*) FROM users)                              AS total_users,
+              (SELECT count(*) FROM users WHERE is_pro)                 AS pro_users,
+              (SELECT count(*) FROM users WHERE is_admin)               AS admin_users,
+              (SELECT count(*) FROM users
+                 WHERE created_at > now() - interval '7 days')          AS new_users_7d,
+              (SELECT count(*) FROM users
+                 WHERE created_at > now() - interval '24 hours')        AS new_users_24h,
+              (SELECT count(*) FROM search_log)                         AS total_searches,
+              (SELECT count(*) FROM search_log
+                 WHERE created_at > now() - interval '24 hours')        AS searches_24h,
+              (SELECT count(DISTINCT identity) FROM search_log)         AS unique_searchers,
+              (SELECT count(*) FROM watchlist)                          AS watchlist_items,
+              (SELECT count(*) FROM movies)                             AS total_movies,
+              (SELECT count(*) FROM movies
+                 WHERE catalog_source = 'geocinema')                    AS georgian_movies,
+              (SELECT coalesce(sum(amount), 0) FROM payments
+                 WHERE status = 'paid')                                 AS revenue_cents,
+              (SELECT count(*) FROM payments WHERE status = 'paid')     AS paid_count;
+            """
+        )
+        stats = cur.fetchone()
+
+        cur.execute(
+            """
+            SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
+                   (SELECT count(*) FROM search_log s
+                      WHERE s.created_at::date = d::date) AS searches,
+                   (SELECT count(*) FROM users u
+                      WHERE u.created_at::date = d::date) AS signups
+            FROM generate_series(
+                now() - interval '13 days', now(), interval '1 day'
+            ) AS d
+            ORDER BY day;
+            """
+        )
+        daily = cur.fetchall()
+
+    return {"stats": stats, "daily": daily}
+
+
+@app.get("/api/admin/users")
+def admin_users(
+    q: Optional[str] = Query(None),
+    plan: Optional[str] = Query(None),          # "pro" | "free"
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    where, params = [], {}
+    if q and q.strip():
+        where.append("(u.username ILIKE %(q)s OR u.email ILIKE %(q)s)")
+        params["q"] = f"%{q.strip()}%"
+    if plan == "pro":
+        where.append("coalesce(u.is_pro, FALSE) = TRUE")
+    elif plan == "free":
+        where.append("coalesce(u.is_pro, FALSE) = FALSE")
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"SELECT count(*) AS n FROM users u {clause};", params)
+        total = cur.fetchone()["n"]
+
+        params["lim"] = limit
+        params["off"] = offset
+        cur.execute(
+            f"""
+            SELECT u.id, u.username, u.email,
+                   coalesce(u.is_pro,   FALSE) AS is_pro,
+                   coalesce(u.is_admin, FALSE) AS is_admin,
+                   u.created_at,
+                   (u.avatar IS NOT NULL)      AS has_avatar,
+                   u.avatar_updated_at,
+                   (SELECT count(*) FROM watchlist w
+                      WHERE w.user_id = u.id)                      AS watchlist_count,
+                   (SELECT count(*) FROM search_log s
+                      WHERE s.identity = 'user:' || u.id)          AS search_count,
+                   (SELECT max(s.created_at) FROM search_log s
+                      WHERE s.identity = 'user:' || u.id)          AS last_search,
+                   (SELECT coalesce(sum(p.amount), 0) FROM payments p
+                      WHERE p.user_id = u.id AND p.status = 'paid') AS paid_cents
+            FROM users u
+            {clause}
+            ORDER BY u.created_at DESC NULLS LAST, u.id DESC
+            LIMIT %(lim)s OFFSET %(off)s;
+            """,
+            params,
+        )
+        rows = cur.fetchall()
+
+    return {"total": total, "limit": limit, "offset": offset, "users": rows}
+
+
+class AdminUserUpdate(BaseModel):
+    is_pro: Optional[bool] = None
+
+
+@app.patch("/api/admin/users/{user_id}")
+def admin_update_user(
+    user_id: int,
+    payload: AdminUserUpdate,
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    """Grant or revoke Pro. Admin rights are deliberately NOT settable here --
+    use backend/make_admin.py from a terminal."""
+    if payload.is_pro is None:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            UPDATE users SET is_pro = %s WHERE id = %s
+            RETURNING id, username, email, coalesce(is_pro, FALSE) AS is_pro;
+            """,
+            (payload.is_pro, user_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.commit()
+
+    return row
+
+
+@app.get("/api/admin/payments")
+def admin_payments(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT count(*) AS n FROM payments;")
+        total = cur.fetchone()["n"]
+
+        cur.execute(
+            """
+            SELECT p.id, p.user_id, u.username, u.email,
+                   p.amount, p.currency, p.status,
+                   p.stripe_session_id, p.created_at
+            FROM payments p
+            LEFT JOIN users u ON u.id = p.user_id
+            ORDER BY p.created_at DESC NULLS LAST, p.id DESC
+            LIMIT %s OFFSET %s;
+            """,
+            (limit, offset),
+        )
+        rows = cur.fetchall()
+
+    return {"total": total, "limit": limit, "offset": offset, "payments": rows}
+
+
+@app.get("/api/admin/searches")
+def admin_searches(
+    limit: int = Query(60, ge=1, le=300),
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT id, identity, query, catalog, created_at
+            FROM search_log
+            ORDER BY created_at DESC, id DESC
+            LIMIT %s;
+            """,
+            (limit,),
+        )
+        recent = cur.fetchall()
+
+        # Resolve "user:<id>" identities to names in a second pass, so no SQL
+        # cast ever has to run against an "ip:..." identity.
+        user_ids = []
+        for row in recent:
+            ident = row["identity"] or ""
+            if ident.startswith("user:") and ident[5:].isdigit():
+                user_ids.append(int(ident[5:]))
+
+        names = {}
+        if user_ids:
+            cur.execute(
+                "SELECT id, username, email FROM users WHERE id = ANY(%s);",
+                (sorted(set(user_ids)),),
+            )
+            names = {r["id"]: r for r in cur.fetchall()}
+
+        for row in recent:
+            ident = row["identity"] or ""
+            who = names.get(int(ident[5:])) if (
+                ident.startswith("user:") and ident[5:].isdigit()
+            ) else None
+            row["username"] = who["username"] if who else None
+            row["email"] = who["email"] if who else None
+
+        cur.execute(
+            """
+            SELECT lower(btrim(query)) AS query,
+                   count(*)            AS n,
+                   max(created_at)     AS last_seen
+            FROM search_log
+            WHERE query IS NOT NULL AND btrim(query) <> ''
+            GROUP BY 1
+            ORDER BY n DESC, last_seen DESC
+            LIMIT 20;
+            """
+        )
+        top = cur.fetchall()
+
+    return {"recent": recent, "top": top}

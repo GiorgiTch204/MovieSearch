@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar            BYTEA;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_mime       VARCHAR(32);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ;
@@ -101,7 +102,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password    VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_pro             BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at         TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
-
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin           BOOLEAN DEFAULT FALSE;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_username_key') THEN
@@ -154,6 +155,15 @@ CREATE TABLE IF NOT EXISTS search_log (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Query text + catalog filter, for the admin dashboard.
+-- Rows logged before this migration keep query = NULL.
+ALTER TABLE search_log ADD COLUMN IF NOT EXISTS query   TEXT;
+ALTER TABLE search_log ADD COLUMN IF NOT EXISTS catalog VARCHAR(32);
+
+CREATE INDEX IF NOT EXISTS idx_search_log_identity_time
+    ON search_log (identity, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_search_log_time
+    ON search_log (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_search_log_identity_time
     ON search_log (identity, created_at DESC);
 
