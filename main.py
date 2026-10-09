@@ -1321,12 +1321,26 @@ def admin_delete_user(
                 ),
             )
 
-        cur.execute(
-            "DELETE FROM search_log WHERE identity = %s;", (f"user:{user_id}",)
-        )
-        searches_removed = cur.rowcount
-        cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
-        conn.commit()
+        try:
+            cur.execute(
+                "DELETE FROM search_log WHERE identity = %s;", (f"user:{user_id}",)
+            )
+            searches_removed = cur.rowcount
+            cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+            conn.commit()
+        except psycopg2.errors.ForeignKeyViolation:
+            conn.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Another table still references this account and its foreign "
+                    "key blocks deletion. Run backend/check_fks.py to see which."
+                ),
+            )
+        except Exception as e:
+            conn.rollback()
+            print(f"[admin] delete failed for user {user_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
 
         audit(conn, admin, "delete_user", user_id,
           target["username"] or target["email"],

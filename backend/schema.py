@@ -146,6 +146,28 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- The payments table predates this file -- it was originally created by
+-- migrate_payments.py with a plain REFERENCES users(id), i.e. ON DELETE
+-- NO ACTION. CREATE TABLE IF NOT EXISTS above sees the table already exists
+-- and changes nothing, so that old rule survives and blocks deleting any
+-- user who has paid. Rewrite the constraint explicitly.
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'payments'::regclass
+          AND contype  = 'f'
+          AND confrelid = 'users'::regclass
+    LOOP
+        EXECUTE format('ALTER TABLE payments DROP CONSTRAINT %I', r.conname);
+    END LOOP;
+
+    ALTER TABLE payments
+        ADD CONSTRAINT payments_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+END $$;
+
 -- ============================================================
 -- 6b. search_log (free-tier quota, rolling 24h window)
 -- ============================================================
