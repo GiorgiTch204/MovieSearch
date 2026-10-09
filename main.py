@@ -700,18 +700,25 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
             uemail = row[1] if row else "unknown"
 
             if first_time:
+                amount = f"{(session.get('amount_total') or 0) / 100:.2f} {(session.get('currency') or '').upper()}"
                 notify(
-                    subject=f"MovieSearch Pro purchase - {uemail}",
+                    subject=f"MovieSearch Pro purchase - {current_user['email']}",
                     body=(
-                        f"A user upgraded to Pro.\n\n"
-                        f"Username: {uname}\n"
-                        f"Email:    {uemail}\n"
-                        f"User ID:  {user_id}\n"
-                        f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
-                        f"{(session.get('currency') or '').upper()}\n"
+                        f"Username: {current_user.get('username') or '-'}\n"
+                        f"Email:    {current_user['email']}\n"
+                        f"Amount:   {amount}\n"
                         f"Session:  {session.get('id')}\n"
-                        f"Livemode: {event.get('livemode')}\n"
                     ),
+                    title=f"Pro purchase - {amount}",
+                    subtitle="Payment received",
+                    rows=[
+                        ("Username", current_user.get("username") or "-"),
+                        ("Email", current_user["email"]),
+                        ("User ID", f"#{current_user['id']}"),
+                        ("Amount", amount),
+                        ("Session", session.get("id")),
+                    ],
+                    accent="#059669",
                 )
         except Exception as e:
             print(f"[webhook] notification step failed (ignored): {e}")
@@ -743,13 +750,21 @@ def register(payload: RegisterRequest, conn=Depends(get_db)):
         user = cur.fetchone()
         conn.commit()
 
-        notify(
+    notify(
         subject=f"New MovieSearch signup: {user['email']}",
         body=(
             f"Username: {user.get('username') or '-'}\n"
             f"Email:    {user['email']}\n"
             f"User ID:  {user['id']}\n"
         ),
+        title="New account registered",
+        subtitle="Account activity",
+        rows=[
+            ("Username", user.get("username") or "-"),
+            ("Email", user["email"]),
+            ("User ID", f"#{user['id']}"),
+        ],
+        accent="#2563eb",
     )
 
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
@@ -1568,16 +1583,25 @@ def confirm_checkout(
     print(f"[confirm] user {current_user['id']} upgraded to Pro")
 
     if first_time:
+        amount = f"{(session.get('amount_total') or 0) / 100:.2f} {(session.get('currency') or '').upper()}"
         notify(
             subject=f"MovieSearch Pro purchase - {current_user['email']}",
             body=(
                 f"Username: {current_user.get('username') or '-'}\n"
                 f"Email:    {current_user['email']}\n"
-                f"User ID:  {current_user['id']}\n"
-                f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
-                f"{(session.get('currency') or '').upper()}\n"
+                f"Amount:   {amount}\n"
                 f"Session:  {session.get('id')}\n"
             ),
+            title=f"Pro purchase - {amount}",
+            subtitle="Payment received",
+            rows=[
+                ("Username", current_user.get("username") or "-"),
+                ("Email", current_user["email"]),
+                ("User ID", f"#{current_user['id']}"),
+                ("Amount", amount),
+                ("Session", session.get("id")),
+            ],
+            accent="#059669",
         )
 
     return {"status": "paid", "is_pro": True}

@@ -23,6 +23,8 @@ def send_notification(subject: str, body: str) -> bool:
     msg["From"] = user
     msg["To"] = to_addr
     msg.set_content(body)
+    if html:
+        msg.add_alternative(html, subtype="html")
 
     context = ssl.create_default_context()
 
