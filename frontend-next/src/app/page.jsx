@@ -147,6 +147,33 @@ export default function Home() {
     }
   }, [query, filters, fetchMovies]);
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("payment") !== "success") return;
+
+    const token = localStorage.getItem("auth_token");
+    let attempts = 0;
+
+    const poll = () => {
+      attempts += 1;
+      fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((u) => {
+          if (u) setUser(u);
+          if (u && !u.is_pro && attempts < 4) setTimeout(poll, 3000);
+        })
+        .catch(() => {});
+    };
+
+    if (token) poll();
+
+    url.searchParams.delete("payment");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+
   return (
     <div className="min-h-screen bg-surface-0 text-ink flex flex-col font-sans">
       <Navbar

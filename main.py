@@ -731,3 +731,78 @@ def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
 @app.post("/api/auth/logout")
 def logout():
     return {"message": "Logged out successfully"}
+
+class UpdateProfileRequest(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
+@app.patch("/api/auth/me")
+def update_profile(
+    payload: UpdateProfileRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    updates, params = [], []
+
+    if payload.username is not None:
+        uname = payload.username.strip()
+        if len(uname) < 3:
+            raise HTTPException(400, "Username must be at least 3 characters")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM users WHERE LOWER(username) = LOWER(%s) AND id <> %s;",
+                (uname, current_user["id"]),
+            )
+            if cur.fetchone():
+                raise HTTPException(400, "That username is already taken")
+        updates.append("username = %s")
+        params.append(uname)
+
+    if payload.email is not None:
+        email = payload.email.strip().lower()
+        if "@" not in email or "." not in email:
+            raise HTTPException(400, "Invalid email address")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM users WHERE LOWER(email) = %s AND id <> %s;",
+                (email, current_user["id"]),
+            )
+            if cur.fetchone():
+                raise HTTPException(400, "That email is already registered")
+        updates.append("email = %s")
+        params.append(email)
+
+    if payload.new_password:
+        if len(payload.new_password) < 8:
+            raise HTTPException(400, "New password must be at least 8 characters")
+        if not payload.current_password:
+            raise HTTPException(400, "Enter your current password to change it")
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT hashed_password FROM users WHERE id = %s;",
+                (current_user["id"],),
+            )
+            row = cur.fetchone()
+        if not row or not verify_password(
+            payload.current_password, row["hashed_password"]
+        ):
+            raise HTTPException(401, "Current password is incorrect")
+        updates.append("hashed_password = %s")
+        params.append(get_password_hash(payload.new_password))
+
+    if not updates:
+        raise HTTPException(400, "Nothing to update")
+
+    params.append(current_user["id"])
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
+            "RETURNING id, username, email, is_pro, created_at;",
+            tuple(params),
+        )
+        user = cur.fetchone()
+    conn.commit()
+    return user

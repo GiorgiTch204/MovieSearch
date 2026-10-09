@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookmarkX, Loader2 } from "lucide-react";
+import { ArrowLeft, BookmarkX, Loader2, X } from "lucide-react";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieModal } from "@/components/MovieModal";
 
@@ -66,7 +66,7 @@ export default function WatchlistPage() {
       <div className="w-full max-w-7xl flex items-center justify-between mb-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted hover:text-ink bg-surface-1 border border-line px-3.5 py-2 rounded-xl transition hover:border-line"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-ink bg-surface-1 border border-line px-3.5 py-2 rounded-xl transition hover:border-line"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Search
         </Link>
@@ -78,9 +78,9 @@ export default function WatchlistPage() {
           <Loader2 className="w-6 h-6 animate-spin" /> Loading your movies...
         </div>
       ) : movies.length === 0 ? (
-        <div className="text-center text-ink-muted mt-20 flex flex-col items-center">
+        <div className="text-center text-slate-500 mt-20 flex flex-col items-center">
           <BookmarkX className="w-16 h-16 mb-4 stroke-[1.2]" />
-          <p className="text-ink-muted text-sm mb-3">
+          <p className="text-slate-400 text-sm mb-3">
             No movies saved to your watchlist yet.
           </p>
           <Link
@@ -93,11 +93,22 @@ export default function WatchlistPage() {
       ) : (
         <div className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
           {movies.map((movie) => (
-            <MovieCard
-              key={movie.id}
-              movie={movie}
-              onClick={() => setSelectedMovie(movie)}
-            />
+            <div key={movie.id} className="relative group">
+              <MovieCard
+                movie={movie}
+                onClick={() => setSelectedMovie(movie)}
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleWatchlist(movie.id);
+                }}
+                title="Remove from watchlist"
+                className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-surface-0/80 border border-line text-ink-muted opacity-0 group-hover:opacity-100 hover:text-rose-400 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           ))}
         </div>
       )}
