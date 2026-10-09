@@ -40,11 +40,11 @@ export function FilterBar({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 backdrop-blur space-y-4">
+    <div className="bg-surface-1/90 border border-line rounded-2xl p-4 backdrop-blur space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {/* Catalog Filter */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
             კატალოგი / Catalog
           </label>
           <select
@@ -52,7 +52,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("catalog", e.target.value || null, setCatalog)
             }
-            className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ყველა კატალოგი (All)</option>
             <option value="geocinema">ქართული კინოკლასიკა (Geocinema)</option>
@@ -62,7 +62,7 @@ export function FilterBar({
 
         {/* Genre Filter */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
             ჟანრი / Genre
           </label>
           <select
@@ -70,7 +70,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("genre", e.target.value || null, setSelectedGenre)
             }
-            className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ყველა ჟანრი (All)</option>
             <option value="კომედია">კომედია</option>
@@ -87,7 +87,7 @@ export function FilterBar({
 
         {/* Era Filter */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
             ეპოქა / Era
           </label>
           <select
@@ -95,7 +95,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("era", e.target.value || null, setEra)
             }
-            className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ნებისმიერი პერიოდი (Any)</option>
             <option value="before_1990">1990 წლამდე (Before 1990)</option>
@@ -107,7 +107,7 @@ export function FilterBar({
 
         {/* Min Rating Filter */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
             მინ. რეიტინგი / Min Rating
           </label>
           <select
@@ -119,7 +119,7 @@ export function FilterBar({
                 setMinRating,
               )
             }
-            className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ნებისმიერი (Any)</option>
             <option value="6">★ 6.0+</option>
@@ -130,15 +130,15 @@ export function FilterBar({
       </div>
 
       {/* Search Engine Weight Slider */}
-      <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+      <div className="pt-3 border-t border-line/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-ink-muted font-medium">
           <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
           <span>Search Engine Weight:</span>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-80">
           <span
-            className={`text-[11px] font-medium transition ${currentWeight <= 0.4 ? "text-blue-400 font-semibold" : "text-slate-500"}`}
+            className={`text-[11px] font-medium transition ${currentWeight <= 0.4 ? "text-blue-400 font-semibold" : "text-ink-muted"}`}
           >
             Keyword
           </span>
@@ -155,10 +155,10 @@ export function FilterBar({
                 setSemanticWeight,
               )
             }
-            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="flex-1 h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
           <span
-            className={`text-[11px] font-medium transition ${currentWeight >= 0.6 ? "text-blue-400 font-semibold" : "text-slate-500"}`}
+            className={`text-[11px] font-medium transition ${currentWeight >= 0.6 ? "text-blue-400 font-semibold" : "text-ink-muted"}`}
           >
             Semantic
           </span>

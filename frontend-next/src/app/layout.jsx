@@ -26,11 +26,18 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme')||'dark';document.documentElement.classList.toggle('dark',t!=='light')}catch(e){}`,
+          }}
+        />
+      </head>
       <body
         suppressHydrationWarning
-        className="min-h-full flex flex-col bg-slate-950 text-slate-100"
+        className="min-h-full flex flex-col bg-surface-0 text-ink"
       >
         {children}
       </body>

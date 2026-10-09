@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clapperboard, Bookmark, User, LogOut } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Navbar = ({
   user: propUser,
@@ -66,24 +67,25 @@ export const Navbar = ({
 
   return (
     <>
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
+      <header className="border-b border-line bg-surface-0/80 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="p-2 rounded-xl bg-blue-600/10 text-blue-500 border border-blue-500/20 group-hover:scale-105 transition">
               🎬
             </div>
-            <span className="font-bold text-lg text-white tracking-tight">
-              MovieSearch Pro
+            <span className="font-bold text-lg text-ink tracking-tight">
+              MovieSearch{currentUser?.is_pro ? " Pro" : ""}
             </span>
           </Link>
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {currentUser && (
               <Link
                 href="/watchlist"
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-surface-1 border border-line  text-xs font-semibold text-ink hover:text-ink hover:border-line transition flex items-center gap-1.5"
               >
                 <Bookmark className="w-3.5 h-3.5" /> Watchlist
               </Link>
@@ -91,7 +93,7 @@ export const Navbar = ({
             {/* Upgrade to Pro Button */}
             <button
               onClick={onOpenPricing}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-ink shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
             >
               <span>⭐</span> Upgrade to Pro
             </button>
@@ -99,12 +101,12 @@ export const Navbar = ({
             {/* Auth State */}
             {currentUser ? (
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-300 font-medium">
+                <span className="text-xs text-ink font-medium">
                   {currentUser.email}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-xs text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition"
+                  className="text-xs text-ink-muted hover:text-ink p-1.5 rounded-lg hover:bg-surface-2 transition"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -113,7 +115,7 @@ export const Navbar = ({
             ) : (
               <button
                 onClick={handleOpenAuth}
-                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white transition shadow-sm"
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-ink transition shadow-sm"
               >
                 Sign In
               </button>

@@ -107,15 +107,15 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
+      <div className="bg-surface-1 border border-line rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white"
+          className="absolute top-4 right-4 text-ink-muted hover:text-ink"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex border-b border-slate-800 mb-6">
+        <div className="flex border-b border-line mb-6">
           <button
             onClick={() => {
               setIsLogin(true);
@@ -125,7 +125,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
             className={`flex-1 pb-3 text-xs font-semibold tracking-wide transition ${
               isLogin
                 ? "text-indigo-400 border-b-2 border-indigo-500"
-                : "text-slate-400"
+                : "text-ink-muted"
             }`}
           >
             Sign In
@@ -139,7 +139,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
             className={`flex-1 pb-3 text-xs font-semibold tracking-wide transition ${
               !isLogin
                 ? "text-indigo-400 border-b-2 border-indigo-500"
-                : "text-slate-400"
+                : "text-ink-muted"
             }`}
           >
             Create Account
@@ -161,17 +161,17 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+            <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
               {isLogin ? "Username or Email" : "Username"}
             </label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <User className="w-4 h-4 text-ink-muted absolute left-3 top-3" />
               <input
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-surface-0 border border-line rounded-xl pl-9 pr-3 py-2 text-xs text-ink focus:outline-none focus:border-indigo-500"
                 placeholder={isLogin ? "user or email@example.com" : "john_doe"}
               />
             </div>
@@ -179,17 +179,17 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
           {!isLogin && (
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
                 Email
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-ink-muted absolute left-3 top-3" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-0 border border-line rounded-xl pl-9 pr-3 py-2 text-xs text-ink focus:outline-none focus:border-indigo-500"
                   placeholder="name@example.com"
                 />
               </div>
@@ -197,17 +197,17 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           )}
 
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+            <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
               Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <Lock className="w-4 h-4 text-ink-muted absolute left-3 top-3" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-surface-0 border border-line rounded-xl pl-9 pr-3 py-2 text-xs text-ink focus:outline-none focus:border-indigo-500"
                 placeholder="••••••••"
               />
             </div>
@@ -216,7 +216,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white transition flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-ink transition flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

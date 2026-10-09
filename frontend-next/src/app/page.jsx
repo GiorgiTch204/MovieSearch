@@ -144,7 +144,7 @@ export default function Home() {
   }, [query, filters, fetchMovies]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-surface-0 text-ink flex flex-col font-sans">
       <Navbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -156,19 +156,19 @@ export default function Home() {
         {/* Search Input */}
         <div className="max-w-3xl mx-auto mb-6 space-y-4">
           <div className="relative flex items-center">
-            <Search className="absolute left-4 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 w-5 h-5 text-ink-muted" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && fetchMovies()}
               placeholder="Search by title, director, actor, or plot (e.g., დათა თუთაშხია, Inception)..."
-              className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-28 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition shadow-lg"
+              className="w-full bg-surface-1 border border-line rounded-2xl py-3.5 pl-12 pr-28 text-ink placeholder-slate-500 focus:outline-none focus:border-blue-500 transition shadow-lg"
             />
             <button
               onClick={fetchMovies}
               disabled={loading}
-              className="absolute right-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white text-sm font-semibold rounded-xl transition flex items-center gap-2"
+              className="absolute right-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-2 text-ink text-sm font-semibold rounded-xl transition flex items-center gap-2"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -184,16 +184,16 @@ export default function Home() {
 
         {/* Results Area */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
+          <div className="flex flex-col items-center justify-center py-20 text-ink-muted gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             <p className="text-sm">Searching movie archive...</p>
           </div>
         ) : results.length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-slate-400">
+              <h2 className="text-sm font-medium text-ink-muted">
                 Found{" "}
-                <span className="text-white font-semibold">
+                <span className="text-ink font-semibold">
                   {results.length}
                 </span>{" "}
                 movies matching your query:
@@ -210,12 +210,12 @@ export default function Home() {
             </div>
           </div>
         ) : query ? (
-          <div className="text-center py-20 text-slate-500">
+          <div className="text-center py-20 text-ink-muted">
             <Film className="w-12 h-12 stroke-1 mx-auto mb-3 text-slate-600" />
-            <p className="text-base font-medium text-slate-400">
+            <p className="text-base font-medium text-ink-muted">
               No movies found
             </p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               Try another search term or change your catalog/filter settings.
             </p>
           </div>

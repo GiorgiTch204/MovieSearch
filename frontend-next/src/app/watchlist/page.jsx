@@ -62,15 +62,15 @@ export default function WatchlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center px-4 py-8">
+    <div className="min-h-screen bg-surface-0 text-ink flex flex-col items-center px-4 py-8">
       <div className="w-full max-w-7xl flex items-center justify-between mb-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-xl transition hover:border-slate-700"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted hover:text-ink bg-surface-1 border border-line px-3.5 py-2 rounded-xl transition hover:border-line"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Search
         </Link>
-        <h1 className="text-xl font-bold text-white">Your Saved Watchlist</h1>
+        <h1 className="text-xl font-bold text-ink">Your Saved Watchlist</h1>
       </div>
 
       {loading ? (
@@ -78,9 +78,9 @@ export default function WatchlistPage() {
           <Loader2 className="w-6 h-6 animate-spin" /> Loading your movies...
         </div>
       ) : movies.length === 0 ? (
-        <div className="text-center text-slate-500 mt-20 flex flex-col items-center">
+        <div className="text-center text-ink-muted mt-20 flex flex-col items-center">
           <BookmarkX className="w-16 h-16 mb-4 stroke-[1.2]" />
-          <p className="text-slate-400 text-sm mb-3">
+          <p className="text-ink-muted text-sm mb-3">
             No movies saved to your watchlist yet.
           </p>
           <Link

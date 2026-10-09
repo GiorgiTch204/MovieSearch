@@ -47,10 +47,10 @@ export function PricingModal({ isOpen, onClose, user }) {
 
   return (
     <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 relative shadow-2xl">
+      <div className="bg-surface-1 border border-line rounded-3xl max-w-md w-full p-6 relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-full bg-slate-800/60"
+          className="absolute top-4 right-4 text-ink-muted hover:text-ink p-2 rounded-full bg-slate-800/60"
         >
           <X className="w-4 h-4" />
         </button>
@@ -59,22 +59,22 @@ export function PricingModal({ isOpen, onClose, user }) {
           <Sparkles className="w-3.5 h-3.5" /> MovieSearch Pro
         </div>
 
-        <h3 className="text-2xl font-bold text-white mb-2">
+        <h3 className="text-2xl font-bold text-ink mb-2">
           Upgrade to Pro Pass
         </h3>
-        <p className="text-xs text-slate-400 mb-6">
+        <p className="text-xs text-ink-muted mb-6">
           Unlock unlimited semantic AI natural language search, full Georgian
           cinema archive, and watchlists.
         </p>
 
         <div className="flex items-baseline gap-2 mb-6">
-          <span className="text-4xl font-extrabold text-white">$9.99</span>
-          <span className="text-xs text-slate-400 font-medium">
+          <span className="text-4xl font-extrabold text-ink">$9.99</span>
+          <span className="text-xs text-ink-muted font-medium">
             / lifetime access
           </span>
         </div>
 
-        <ul className="space-y-3 mb-6 text-xs text-slate-300">
+        <ul className="space-y-3 mb-6 text-xs text-ink">
           <li className="flex items-center gap-2">
             <Check className="w-4 h-4 text-blue-400 shrink-0" />
             <span>
@@ -94,7 +94,7 @@ export function PricingModal({ isOpen, onClose, user }) {
         <button
           onClick={handleCheckout}
           disabled={loading}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-ink font-semibold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
