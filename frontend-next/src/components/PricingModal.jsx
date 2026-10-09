@@ -35,7 +35,7 @@ export function PricingModal({ isOpen, onClose, user }) {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert("Failed to initiate payment session");
+        alert(data.detail || "Failed to initiate payment session");
       }
     } catch (err) {
       console.error(err);
