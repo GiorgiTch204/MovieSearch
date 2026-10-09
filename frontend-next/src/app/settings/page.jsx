@@ -191,16 +191,31 @@ export default function SettingsPage() {
         </p>
 
         <div
-          className={`mb-6 p-4 rounded-xl border flex items-center gap-2.5 text-sm ${
+          className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
             user.is_pro
-              ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-              : "bg-surface-1 border-line text-ink-muted"
+              ? "bg-blue-500/10 border-blue-500/30"
+              : "bg-surface-1 border-line"
           }`}
         >
-          <Sparkles className="w-4 h-4 shrink-0" />
-          {user.is_pro
-            ? "Pro Pass active - unlimited searches"
-            : "Free plan - 20 searches per 24 hours"}
+          <Sparkles
+            className={`w-4 h-4 mt-0.5 shrink-0 ${
+              user.is_pro ? "text-blue-400" : "text-ink-muted"
+            }`}
+          />
+          <div>
+            <p
+              className={`text-sm font-semibold ${
+                user.is_pro ? "text-blue-400" : "text-ink"
+              }`}
+            >
+              {user.is_pro ? "Pro Pass active" : "Free plan"}
+            </p>
+            <p className="text-xs text-ink-muted mt-0.5">
+              {user.is_pro
+                ? "Lifetime access. Unlimited semantic searches across both catalogues."
+                : "20 searches per 24 hours. Upgrade for unlimited access."}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-5 mb-8 p-5 rounded-2xl bg-surface-1 border border-line">

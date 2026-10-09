@@ -43,6 +43,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     username: Optional[str] = None
+    
 
 class LoginRequest(BaseModel):
     username_or_email: str
@@ -543,8 +544,9 @@ def remove_from_watchlist(
 # ----------------- STRIPE / PAYMENTS -----------------
 @app.post("/api/checkout/create-session")
 def create_checkout_session(current_user: Dict[str, Any] = Depends(get_current_user)):
+    if current_user.get("is_pro"):
+        raise HTTPException(400, "You already have Pro access")
     secret_key = os.getenv("STRIPE_SECRET_KEY")
-    print(f"[Stripe] key present={bool(secret_key)} prefix={(secret_key or '')[:8]!r} len={len(secret_key or '')}")
     if not secret_key or not secret_key.startswith("sk_"):
         print("[Stripe Error] STRIPE_SECRET_KEY is missing or contains placeholder text in .env")
         raise HTTPException(
@@ -689,6 +691,7 @@ def register(payload: RegisterRequest, conn=Depends(get_db)):
             "username": user.get("username"),
             "email": user["email"],
             "is_pro": user["is_pro"],
+            "has_avatar": False,
         },
     }
 
@@ -700,7 +703,8 @@ def login(payload: LoginRequest, conn=Depends(get_db)):
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
             """
-            SELECT id, username, email, hashed_password, is_pro 
+            SELECT id, username, email, hashed_password, is_pro, created_at,
+                   (avatar IS NOT NULL) AS has_avatar, avatar_updated_at
             FROM users 
             WHERE LOWER(email) = %s OR LOWER(username) = %s;
             """,
@@ -721,6 +725,9 @@ def login(payload: LoginRequest, conn=Depends(get_db)):
         "username": user.get("username"),
         "email": user["email"],
         "is_pro": user.get("is_pro", False),
+        "created_at": user.get("created_at"),
+        "has_avatar": user.get("has_avatar", False),
+        "avatar_updated_at": user.get("avatar_updated_at"),
     }
 
     return {

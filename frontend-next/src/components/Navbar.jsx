@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Clapperboard, Bookmark, User, LogOut } from "lucide-react";
+import { Clapperboard, Bookmark, User, LogOut, Sparkles } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar } from "@/components/Avatar";
@@ -95,12 +95,18 @@ export const Navbar = ({
               </Link>
             )}
             {/* Upgrade to Pro Button */}
-            <button
-              onClick={onOpenPricing}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-ink shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
-            >
-              <span>⭐</span> Upgrade to Pro
-            </button>
+            {currentUser?.is_pro ? (
+              <span className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-semibold text-white shadow-md shadow-blue-500/20 flex items-center gap-1.5 select-none">
+                <Sparkles className="w-3.5 h-3.5" /> Pro
+              </span>
+            ) : (
+              <button
+                onClick={onOpenPricing}
+                className="px-3.5 py-1.5 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+              >
+                <span>⭐</span> Upgrade to Pro
+              </button>
+            )}
 
             {/* Auth State */}
             {currentUser ? (
