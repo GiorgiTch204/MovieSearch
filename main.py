@@ -431,10 +431,15 @@ def get_movie_details(movie_id: int, conn=Depends(get_db)):
 
         tmdb_key = os.getenv("TMDB_API_KEY")
 
+        is_tv = (row.get("media_type") or "movie") == "tv"
+        if is_tv and str(target_tmdb_id or "").startswith("tv"):
+            target_tmdb_id = str(target_tmdb_id)[2:]
+        kind = "tv" if is_tv else "movie"
+
         if row.get("catalog_source") == "tmdb" and target_tmdb_id and tmdb_key:
             try:
                 # 1. Fetch live YouTube trailer
-                url = f"https://api.themoviedb.org/3/movie/{target_tmdb_id}/videos?api_key={tmdb_key}"
+                url = f"https://api.themoviedb.org/3/{kind}/{target_tmdb_id}/videos?api_key={tmdb_key}"
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(req, timeout=4) as resp:
                     vdata = json.loads(resp.read().decode())
@@ -450,7 +455,7 @@ def get_movie_details(movie_id: int, conn=Depends(get_db)):
                                 break
 
                 # 2. Fetch backdrop and cast credits
-                url_c = f"https://api.themoviedb.org/3/movie/{target_tmdb_id}?api_key={tmdb_key}&append_to_response=credits"
+                url_c = f"https://api.themoviedb.org/3/{kind}/{target_tmdb_id}?api_key={tmdb_key}&append_to_response=credits"
                 req_c = urllib.request.Request(url_c, headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(req_c, timeout=4) as resp:
                     ddata = json.loads(resp.read().decode())
