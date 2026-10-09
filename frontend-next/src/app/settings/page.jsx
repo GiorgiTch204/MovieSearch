@@ -1,12 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Check, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  Loader2,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { Avatar } from "@/components/Avatar";
 
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
+
+// Centre-crop to a square and shrink before upload, so a 4MB phone photo
+// becomes ~30KB and the server never sees the original.
+async function toSquareDataUrl(file, size = 256) {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = (bitmap.width - side) / 2;
+  const sy = (bitmap.height - side) / 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  canvas
+    .getContext("2d")
+    .drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -15,8 +40,14 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  const fileRef = useRef(null);
+
+  const authHeader = () => ({
+    Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
@@ -33,6 +64,58 @@ export default function SettingsPage() {
       })
       .catch(() => {});
   }, []);
+
+  const pickFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    setSaved("");
+    try {
+      const dataUrl = await toSquareDataUrl(file);
+      const res = await fetch(`${API_BASE}/api/auth/me/avatar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ data_url: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Upload failed");
+      setUser((u) => ({
+        ...u,
+        has_avatar: true,
+        avatar_updated_at: new Date().toISOString(),
+      }));
+      setSaved("Photo updated");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    setUploading(true);
+    setError("");
+    setSaved("");
+    try {
+      await fetch(`${API_BASE}/api/auth/me/avatar`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+      setUser((u) => ({
+        ...u,
+        has_avatar: false,
+        avatar_updated_at: new Date().toISOString(),
+      }));
+      setSaved("Photo removed");
+    } catch {
+      setError("Could not remove photo");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -57,16 +140,13 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/me`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Update failed");
 
-      setUser(data);
+      setUser((u) => ({ ...u, ...data }));
       setCurrentPassword("");
       setNewPassword("");
       setSaved("Saved");
@@ -89,6 +169,10 @@ export default function SettingsPage() {
     "w-full bg-surface-0 border border-line rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-blue-500";
   const label =
     "text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1.5";
+  const hasChanges =
+    username !== (user.username || "") ||
+    email !== (user.email || "") ||
+    Boolean(newPassword);
 
   return (
     <div className="min-h-screen bg-surface-0 text-ink px-4 py-8">
@@ -117,6 +201,55 @@ export default function SettingsPage() {
           {user.is_pro
             ? "Pro Pass active - unlimited searches"
             : "Free plan - 20 searches per 24 hours"}
+        </div>
+
+        <div className="flex items-center gap-5 mb-8 p-5 rounded-2xl bg-surface-1 border border-line">
+          <div className="relative">
+            <Avatar user={user} size={76} ring={user.is_pro} />
+            {uploading && (
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-surface-0/70">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">
+              {user.username || user.email}
+            </p>
+            <p className="text-xs text-ink-muted mb-3">
+              JPEG, PNG or WebP. Cropped square and saved immediately.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="px-3 py-1.5 rounded-lg bg-surface-2 border border-line text-xs font-semibold hover:border-blue-500 transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                {user.has_avatar ? "Change" : "Upload"}
+              </button>
+              {user.has_avatar && (
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  disabled={uploading}
+                  className="px-3 py-1.5 rounded-lg bg-surface-2 border border-line text-xs font-semibold text-ink-muted hover:text-rose-400 transition flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                </button>
+              )}
+            </div>
+          </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={pickFile}
+            className="hidden"
+          />
         </div>
 
         <form onSubmit={save} className="space-y-5">
@@ -178,7 +311,7 @@ export default function SettingsPage() {
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !hasChanges}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold text-white transition flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {saving ? (

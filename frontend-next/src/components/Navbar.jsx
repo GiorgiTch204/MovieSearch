@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Clapperboard, Bookmark, User, LogOut } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Avatar } from "@/components/Avatar";
 
 export const Navbar = ({
   user: propUser,
@@ -106,9 +107,17 @@ export const Navbar = ({
               <div className="flex items-center gap-3">
                 <Link
                   href="/settings"
-                  className="text-xs text-ink-muted hover:text-ink font-medium transition"
+                  className="flex items-center gap-2 group/avatar"
+                  title="Account settings"
                 >
-                  {currentUser.email}
+                  <Avatar
+                    user={currentUser}
+                    size={30}
+                    ring={currentUser.is_pro}
+                  />
+                  <span className="text-xs text-ink-muted group-hover/avatar:text-ink font-medium transition hidden sm:inline">
+                    {currentUser.username || currentUser.email}
+                  </span>
                 </Link>
                 <button
                   onClick={handleLogout}

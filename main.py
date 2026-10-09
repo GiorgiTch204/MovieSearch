@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from backend.mailer import send_notification
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query, HTTPException, Depends, Request, Header
+from fastapi import FastAPI, Query, HTTPException, Depends, Request, Header, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
@@ -14,6 +14,8 @@ from psycopg2.extras import RealDictCursor
 import stripe
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+import base64
+import re
 
 load_dotenv()
 
@@ -117,7 +119,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), conn=Depends(get_db)) 
         raise HTTPException(status_code=401, detail="Token expired or invalid")
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT id, username, email, is_pro FROM users WHERE id = %s;", (int(user_id),))
+        cur.execute(
+            "SELECT id, username, email, is_pro, created_at, "
+            "(avatar IS NOT NULL) AS has_avatar, avatar_updated_at "
+            "FROM users WHERE id = %s;",
+            (int(user_id),),
+        )
         user = cur.fetchone()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -806,3 +813,103 @@ def update_profile(
         user = cur.fetchone()
     conn.commit()
     return user
+
+# ----------------- AVATARS -----------------
+MAX_AVATAR_BYTES = 512 * 1024
+ALLOWED_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp"}
+DATA_URL_RE = re.compile(
+    r"^data:(image/[a-z+]+);base64,(.+)$", re.IGNORECASE | re.DOTALL
+)
+
+
+def sniff_image_mime(raw: bytes) -> Optional[str]:
+    """Trust the bytes, not the declared type."""
+    if raw.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+class AvatarRequest(BaseModel):
+    data_url: str
+
+
+@app.put("/api/auth/me/avatar")
+def set_avatar(
+    payload: AvatarRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    match = DATA_URL_RE.match(payload.data_url or "")
+    if not match:
+        raise HTTPException(400, "Expected a base64 image data URL")
+
+    declared = match.group(1).lower()
+    if declared not in ALLOWED_IMAGE_MIME:
+        raise HTTPException(400, f"Unsupported image type: {declared}")
+
+    try:
+        raw = base64.b64decode(match.group(2), validate=True)
+    except Exception:
+        raise HTTPException(400, "Image data is not valid base64")
+
+    if not raw:
+        raise HTTPException(400, "Image is empty")
+    if len(raw) > MAX_AVATAR_BYTES:
+        raise HTTPException(413, "Image is larger than 512 KB")
+
+    actual = sniff_image_mime(raw)
+    if actual is None:
+        raise HTTPException(400, "File does not look like a JPEG, PNG or WebP image")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE users
+            SET avatar = %s, avatar_mime = %s, avatar_updated_at = now()
+            WHERE id = %s;
+            """,
+            (psycopg2.Binary(raw), actual, current_user["id"]),
+        )
+        conn.commit()
+
+    return {"status": "ok", "mime": actual, "bytes": len(raw)}
+
+
+@app.delete("/api/auth/me/avatar")
+def delete_avatar(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET avatar = NULL, avatar_mime = NULL, "
+            "avatar_updated_at = now() WHERE id = %s;",
+            (current_user["id"],),
+        )
+        conn.commit()
+    return {"status": "removed"}
+
+
+@app.get("/api/users/{user_id}/avatar")
+def get_avatar(user_id: int, conn=Depends(get_db)):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT avatar, avatar_mime FROM users WHERE id = %s;", (user_id,)
+        )
+        row = cur.fetchone()
+
+    if not row or not row[0]:
+        raise HTTPException(404, "No avatar")
+
+    return Response(
+        content=bytes(row[0]),
+        media_type=row[1] or "image/jpeg",
+        headers={
+            "Cache-Control": "public, max-age=300",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
