@@ -41,6 +41,7 @@ ALTER TABLE movies ADD COLUMN IF NOT EXISTS detail_url           TEXT;
 ALTER TABLE movies ADD COLUMN IF NOT EXISTS fts_doc              TSVECTOR;
 ALTER TABLE movies ADD COLUMN IF NOT EXISTS embedding            VECTOR(384);
 ALTER TABLE movies ADD COLUMN IF NOT EXISTS media_type VARCHAR(16) DEFAULT 'movie';
+ALTER TABLE movies ALTER COLUMN studio TYPE TEXT;
 
 -- Legacy NOT NULL constraints block the Georgian catalog (no overview/tmdb_id)
 DO $$

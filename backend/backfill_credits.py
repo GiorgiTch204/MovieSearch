@@ -21,6 +21,28 @@ UPDATE_SQL = """
 """
 
 
+def flush(conn, batch):
+    try:
+        with conn.cursor() as cur:
+            execute_batch(cur, UPDATE_SQL, batch, page_size=BATCH)
+        conn.commit()
+        return len(batch)
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"\n  batch rejected ({type(e).__name__}), retrying row by row")
+        ok = 0
+        for row in batch:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(UPDATE_SQL, row)
+                conn.commit()
+                ok += 1
+            except psycopg2.Error as row_err:
+                conn.rollback()
+                print(f"  skipped id={row[-1]}: {str(row_err).splitlines()[0]}")
+        return ok
+
+
 def main():
     key = get_tmdb_key()
     if not key:
@@ -71,9 +93,11 @@ def main():
                     cast = ", ".join(
                         c["name"] for c in (credits.get("cast") or [])[:8]
                     )
+                    # studio is VARCHAR(255) while director and cast are TEXT,
+                    # so this is the one field that can overflow the column.
                     studio = ", ".join(
                         c["name"] for c in (d.get("production_companies") or [])[:2]
-                    )
+                    )[:250]
                     batch.append(
                         (
                             director or None,
@@ -87,18 +111,12 @@ def main():
                     missing += 1
 
                 if len(batch) >= BATCH:
-                    with conn.cursor() as cur:
-                        execute_batch(cur, UPDATE_SQL, batch, page_size=BATCH)
-                    conn.commit()
-                    written += len(batch)
+                    written += flush(conn, batch)
                     batch = []
                 time.sleep(DELAY)
 
         if batch:
-            with conn.cursor() as cur:
-                execute_batch(cur, UPDATE_SQL, batch, page_size=BATCH)
-            conn.commit()
-            written += len(batch)
+            written += flush(conn, batch)
 
         with conn.cursor() as cur:
             cur.execute(
