@@ -607,53 +607,74 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid webhook payload or signature")
     
     if event.get("type") == "checkout.session.completed":
-            session = event["data"]["object"]
-            user_id = session.get("metadata", {}).get("user_id")
+        session = event["data"]["object"]
+        user_id = session.get("metadata", {}).get("user_id")
 
-            if session.get("payment_status") != "paid":
-                print(f"Ignoring unpaid session {session.get('id')}")
-                return {"status": "ignored"}
+        if session.get("payment_status") != "paid":
+            print(f"[webhook] ignoring unpaid session {session.get('id')}")
+            return {"status": "ignored"}
 
-            if user_id:
-                with conn.cursor() as cur:
-                    cur.execute("UPDATE users SET is_pro = TRUE WHERE id = %s;", (int(user_id),))
-                    cur.execute(
-                        """
-                        INSERT INTO payments (user_id, stripe_session_id, amount, currency, status)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (stripe_session_id) DO NOTHING;
-                        """,
-                        (
-                            int(user_id),
-                            session.get("id"),
-                            session.get("amount_total"),
-                            session.get("currency"),
-                            session.get("payment_status"),
-                        ),
-                    )
-                    conn.commit()
-                    print(f"Payment successful: User {user_id} upgraded to Pro.")
-                    cur.execute(
-                        "SELECT username, email FROM users WHERE id = %s;",
-                        (int(user_id),),
-                    )
-                    row = cur.fetchone()
-                    uname = row[0] if row else "unknown"
-                    uemail = row[1] if row else "unknown"
+        if not user_id:
+            print("[webhook] no user_id in metadata, nothing to do")
+            return {"status": "no user"}
 
-                    send_notification(
-                        subject=f"MovieSearch Pro purchase - {uemail}",
-                        body=(
-                            f"A user upgraded to Pro.\n\n"
-                            f"Username: {uname}\n"
-                            f"Email:    {uemail}\n"
-                            f"User ID:  {user_id}\n"
-                            f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
-                            f"{(session.get('currency') or '').upper()}\n"
-                            f"Session:  {session.get('id')}\n"
-                            f"Livemode: {event.get('livemode')}\n"
-                        ),
-                    )
+        # --- the part that must succeed ---
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET is_pro = TRUE WHERE id = %s;",
+                    (int(user_id),),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO payments
+                        (user_id, stripe_session_id, amount, currency, status)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (stripe_session_id) DO NOTHING;
+                    """,
+                    (
+                        int(user_id),
+                        session.get("id"),
+                        session.get("amount_total"),
+                        session.get("currency"),
+                        session.get("payment_status"),
+                    ),
+                )
+            conn.commit()
+            print(f"[webhook] user {user_id} upgraded to Pro")
+        except Exception:
+            conn.rollback()
+            import traceback
+            print("[webhook] DATABASE STEP FAILED:")
+            traceback.print_exc()
+            raise HTTPException(500, "Database error while upgrading user")
+
+        # --- the part that may fail harmlessly ---
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT username, email FROM users WHERE id = %s;",
+                    (int(user_id),),
+                )
+                row = cur.fetchone()
+            uname = row[0] if row else "unknown"
+            uemail = row[1] if row else "unknown"
+
+            send_notification(
+                subject=f"MovieSearch Pro purchase - {uemail}",
+                body=(
+                    f"A user upgraded to Pro.\n\n"
+                    f"Username: {uname}\n"
+                    f"Email:    {uemail}\n"
+                    f"User ID:  {user_id}\n"
+                    f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
+                    f"{(session.get('currency') or '').upper()}\n"
+                    f"Session:  {session.get('id')}\n"
+                    f"Livemode: {event.get('livemode')}\n"
+                ),
+            )
+        except Exception as e:
+            print(f"[webhook] notification step failed (ignored): {e}")
 
     return {"status": "success"}
 

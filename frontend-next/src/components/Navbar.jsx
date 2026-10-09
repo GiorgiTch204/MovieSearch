@@ -94,6 +94,7 @@ export const Navbar = ({
                 <Bookmark className="w-3.5 h-3.5" /> Watchlist
               </Link>
             )}
+
             {/* Upgrade to Pro Button */}
             {currentUser?.is_pro ? (
               <span className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-semibold text-white shadow-md shadow-blue-500/20 flex items-center gap-1.5 select-none">
@@ -102,7 +103,7 @@ export const Navbar = ({
             ) : (
               <button
                 onClick={onOpenPricing}
-                className="px-3.5 py-1.5 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
               >
                 <span>⭐</span> Upgrade to Pro
               </button>
