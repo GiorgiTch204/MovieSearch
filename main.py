@@ -236,8 +236,58 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def consume_quota(conn, user, request: Request) -> Dict[str, Any]:
-    quota = consume_quota(conn, current_user, request, query=q, catalog=catalog)
+def log_search(conn, identity: str, query, catalog) -> None:
+    """Record one search. Every search is logged (Pro included) so the admin
+    dashboard sees the whole picture; only the LIMIT is free-tier only."""
+    text = (query or "").strip()[:300] or None
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO search_log (identity, query, catalog) VALUES (%s, %s, %s);",
+            (identity, text, catalog),
+        )
+        conn.commit()
+
+
+def consume_quota(conn, user, request: Request, query=None, catalog=None) -> Dict[str, Any]:
+    """Record one search and return quota state. Raises 429 when exhausted."""
+    identity = f"user:{user['id']}" if user else f"ip:{client_ip(request)}"
+
+    if user and user.get("is_pro"):
+        log_search(conn, identity, query, catalog)
+        return {"unlimited": True, "used": 0, "limit": None}
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT count(*) FROM search_log
+            WHERE identity = %s AND created_at > now() - interval '24 hours';
+            """,
+            (identity,),
+        )
+        used = cur.fetchone()[0]
+
+        if used >= FREE_SEARCH_LIMIT:
+            conn.commit()
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Free limit of {FREE_SEARCH_LIMIT} searches per 24 hours "
+                    "reached. Upgrade to Pro for unlimited search."
+                ),
+            )
+        conn.commit()
+
+    log_search(conn, identity, query, catalog)
+
+    # Housekeeping: keep ~6 months of history for the admin dashboard.
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM search_log "
+            "WHERE created_at < now() - interval '180 days' AND random() < 0.05;"
+        )
+        conn.commit()
+
+    return {"unlimited": False, "used": used + 1, "limit": FREE_SEARCH_LIMIT}
 
 # ----------------- SEARCH ENDPOINTS -----------------
 @app.get("/search")
