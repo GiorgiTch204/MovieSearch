@@ -7,6 +7,14 @@ const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
+const SEARCH_IN = [
+  { value: "", label: "ყველაფერში / Everything" },
+  { value: "title", label: "სათაური / Title" },
+  { value: "director", label: "რეჟისორი / Director" },
+  { value: "cast", label: "მსახიობი / Actor or actress" },
+  { value: "person", label: "რეჟისორი ან მსახიობი / Any person" },
+];
+
 const TYPES = [
   { value: "", label: "ყველა / All types" },
   { value: "movie", label: "ფილმები / Movies" },
@@ -40,9 +48,9 @@ const RATINGS = [
 ];
 
 const field =
-  "bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer";
+  "mt-auto w-full bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer";
 const label =
-  "text-[11px] font-semibold tracking-wider text-ink-muted uppercase";
+  "text-[11px] font-semibold tracking-wider text-ink-muted uppercase leading-snug";
 
 export function FilterBar({
   filters = {},
@@ -59,12 +67,16 @@ export function FilterBar({
   setCatalog,
   mediaType,
   setMediaType,
+  searchIn,
+  setSearchIn,
 }) {
   // Support both unified object state and individual props seamlessly
   const currentCatalog =
     catalog !== undefined ? catalog : filters.catalog || "";
   const currentType =
     mediaType !== undefined ? mediaType : filters.mediaType || "";
+  const currentSearchIn =
+    searchIn !== undefined ? searchIn : filters.searchIn || "";
   const currentGenre =
     selectedGenre !== undefined ? selectedGenre : filters.genre || "";
   const currentEra = era !== undefined ? era : filters.era || "";
@@ -97,9 +109,27 @@ export function FilterBar({
 
   return (
     <div className="bg-surface-1/90 border border-line rounded-2xl p-4 backdrop-blur space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        {/* Search in */}
+        <div className="flex h-full flex-col gap-1.5">
+          <label className={label}>ძებნა / Search in</label>
+          <select
+            value={currentSearchIn}
+            onChange={(e) =>
+              handleUpdate("searchIn", e.target.value || null, setSearchIn)
+            }
+            className={field}
+          >
+            {SEARCH_IN.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Type */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex h-full flex-col gap-1.5">
           <label className={label}>ტიპი / Type</label>
           <select
             value={currentType}
@@ -117,7 +147,7 @@ export function FilterBar({
         </div>
 
         {/* Catalog */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex h-full flex-col gap-1.5">
           <label className={label}>კატალოგი / Catalog</label>
           <select
             value={currentCatalog}
@@ -135,7 +165,7 @@ export function FilterBar({
         </div>
 
         {/* Genre */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex h-full flex-col gap-1.5">
           <label className={label}>ჟანრი / Genre</label>
           <select
             value={currentGenre}
@@ -154,7 +184,7 @@ export function FilterBar({
         </div>
 
         {/* Era */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex h-full flex-col gap-1.5">
           <label className={label}>ეპოქა / Era</label>
           <select
             value={currentEra}
@@ -172,7 +202,7 @@ export function FilterBar({
         </div>
 
         {/* Min rating */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex h-full flex-col gap-1.5">
           <label className={label}>მინ. რეიტინგი / Min Rating</label>
           <select
             value={currentRating}
@@ -194,8 +224,13 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* Search Engine Weight Slider */}
-      <div className="pt-3 border-t border-line/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Search Engine Weight Slider -- hidden for scoped lookups, where the
+          query filters one column and the hybrid ranking never runs */}
+      <div
+        className={`pt-3 border-t border-line/80 flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          currentSearchIn ? "hidden" : "flex"
+        }`}
+      >
         <div className="flex items-center gap-2 text-xs text-ink-muted font-medium">
           <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
           <span>Search Engine Weight:</span>

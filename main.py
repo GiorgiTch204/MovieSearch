@@ -308,6 +308,15 @@ ERAS = {
     "2010_plus": (2010, None),
 }
 
+# A name lookup is not a semantic question. "Christopher Nolan" should return
+# every Nolan film, not films that feel Nolan-ish, so these modes bypass the
+# hybrid ranking entirely and filter on the column.
+SEARCH_FIELDS = {
+    "title": "(title ILIKE %(like)s OR title_ka ILIKE %(like)s)",
+    "director": "director ILIKE %(like)s",
+    "cast": "cast_members ILIKE %(like)s",
+    "person": "(director ILIKE %(like)s OR cast_members ILIKE %(like)s)",
+}
 
 @app.get("/api/genres")
 def list_genres(conn=Depends(get_db)):
@@ -340,6 +349,7 @@ def search_movies(
     semantic_weight: float = Query(0.25, ge=0.0, le=1.0),
     catalog: Optional[str] = Query(None),
     media_type: Optional[str] = Query(None),
+    search_in: Optional[str] = Query(None),
     genre: Optional[str] = Query(None),
     era: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None),
@@ -358,6 +368,42 @@ def search_movies(
         vec_str = f"[{','.join(str(x) for x in q_emb)}]"
 
         year_min, year_max = ERAS.get(era or "", (None, None))
+
+                # ---- scoped lookup: one field, no embedding, no RRF ----
+        if search_in in SEARCH_FIELDS:
+            params = {
+                "like": f"%{q.strip()}%",
+                "catalog": catalog,
+                "media_type": media_type if media_type in ("movie", "tv") else None,
+                "genre": genre,
+                "genre_like": f"%{genre}%" if genre else None,
+                "year_min": year_min,
+                "year_max": year_max,
+                "min_rating": min_rating,
+                "limit": limit,
+                "offset": offset,
+            }
+            scoped_sql = f"""
+                SELECT * FROM movies
+                WHERE {SEARCH_FIELDS[search_in]}
+                  AND (%(catalog)s IS NULL OR catalog_source = %(catalog)s)
+                  AND (%(media_type)s IS NULL
+                       OR coalesce(media_type, 'movie') = %(media_type)s)
+                  AND (%(year_min)s IS NULL OR release_year >= %(year_min)s)
+                  AND (%(year_max)s IS NULL OR release_year <= %(year_max)s)
+                  AND (%(genre)s IS NULL OR genre ILIKE %(genre_like)s)
+                  AND (%(min_rating)s IS NULL OR vote_average >= %(min_rating)s
+                       OR vote_average IS NULL)
+                ORDER BY vote_count DESC NULLS LAST,
+                         vote_average DESC NULLS LAST,
+                         release_year DESC NULLS LAST
+                LIMIT %(limit)s OFFSET %(offset)s;
+            """
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(scoped_sql, params)
+                rows = cur.fetchall()
+            movies = [format_movie_item(r, 0.9) for r in rows]
+            return {"results": movies, "total": len(movies), "quota": quota}
 
         sql = """
         WITH semantic_search AS (

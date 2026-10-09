@@ -31,6 +31,7 @@ export default function Home() {
     minRating: "",
     semanticWeight: 0.25,
     mediaType: "",
+    searchIn: "",
   });
 
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -113,6 +114,7 @@ export default function Home() {
       if (filters.minRating)
         params.append("min_rating", filters.minRating.toString());
       if (filters.mediaType) params.append("media_type", filters.mediaType);
+      if (filters.searchIn) params.append("search_in", filters.searchIn);
       const token = localStorage.getItem("auth_token");
       const res = await fetch(
         `${API_BASE}/api/movies/search?${params.toString()}`,
