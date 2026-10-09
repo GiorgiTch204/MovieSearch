@@ -39,6 +39,7 @@ const ACTION_LABEL = {
   revoke_pro: "revoked Pro from:",
   delete_user: "deleted the account:",
   reset_password: "set a new password for:",
+  purge_users: "deleted all non-admin accounts:",
 };
 
 /* ------------------------------------------------------------------ */
@@ -633,6 +634,12 @@ export default function AdminPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [openUser, setOpenUser] = useState(null);
 
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgePw, setPurgePw] = useState("");
+  const [purgeConfirm, setPurgeConfirm] = useState("");
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgeMsg, setPurgeMsg] = useState("");
+
   /* --- who am I ------------------------------------------------- */
   useEffect(() => {
     apiGet("/api/auth/me")
@@ -725,6 +732,32 @@ export default function AdminPage() {
       setError(e.message);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const purgeUsers = async () => {
+    setPurgeBusy(true);
+    setError("");
+    setPurgeMsg("");
+    try {
+      const r = await apiSend("/api/admin/users/purge", "POST", {
+        password: purgePw,
+        confirm: purgeConfirm,
+      });
+      setPurgeMsg(
+        `Deleted ${r.deleted} account${r.deleted === 1 ? "" : "s"}. ` +
+          `${r.kept} admin${r.kept === 1 ? "" : "s"} kept.`,
+      );
+      setPurgePw("");
+      setPurgeConfirm("");
+      setPurgeOpen(false);
+      setUserOffset(0);
+      await loadUsers();
+      await loadOverview();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPurgeBusy(false);
     }
   };
 
@@ -952,29 +985,30 @@ export default function AdminPage() {
 
         {/* Users */}
         {tab === "users" ? (
-          <Panel
-            title="Registered users"
-            subtitle="Everyone who has created an account"
-            right={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search name or email…"
-                  className="min-w-0 flex-1 rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none sm:w-48 sm:flex-none"
-                />
-                <select
-                  value={plan}
-                  onChange={(e) => setPlan(e.target.value)}
-                  className="rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="all">All plans</option>
-                  <option value="pro">Pro only</option>
-                  <option value="free">Free only</option>
-                </select>
-              </div>
-            }
-          >
+          <>
+            <Panel
+              title="Registered users"
+              subtitle="Everyone who has created an account"
+              right={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search name or email…"
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none sm:w-48 sm:flex-none"
+                  />
+                  <select
+                    value={plan}
+                    onChange={(e) => setPlan(e.target.value)}
+                    className="rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="all">All plans</option>
+                    <option value="pro">Pro only</option>
+                    <option value="free">Free only</option>
+                  </select>
+                </div>
+              }
+            >
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-surface-2 text-[11px] uppercase tracking-wider text-ink-muted">
@@ -1162,7 +1196,81 @@ export default function AdminPage() {
               total={users.total}
               onChange={setUserOffset}
             />
-          </Panel>
+            </Panel>
+
+          <section className="mt-5 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 sm:p-5">
+            <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="h-3 w-3" /> Danger zone
+            </h3>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Deletes every account that is not an admin —{" "}
+              <strong className="text-ink">
+                {stats
+                  ? Math.max(0, (stats.total_users || 0) - (stats.admin_users || 0))
+                  : "…"}{" "}
+                accounts
+              </strong>{" "}
+              right now — along with their avatars, watchlists and search
+              history. Admin accounts are kept. Payment records survive but are
+              detached from the user. This cannot be undone.
+            </p>
+
+            {purgeMsg ? (
+              <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                {purgeMsg}
+              </p>
+            ) : null}
+
+            {!purgeOpen ? (
+              <button
+                onClick={() => setPurgeOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/10 dark:text-rose-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete all non-admin accounts
+              </button>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <input
+                  type="password"
+                  value={purgePw}
+                  onChange={(e) => setPurgePw(e.target.value)}
+                  placeholder="your password"
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none"
+                />
+                <input
+                  value={purgeConfirm}
+                  onChange={(e) => setPurgeConfirm(e.target.value)}
+                  placeholder="type DELETE ALL"
+                  className="w-full rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={purgeUsers}
+                    disabled={
+                      purgeBusy ||
+                      !purgePw ||
+                      purgeConfirm.trim() !== "DELETE ALL"
+                    }
+                    className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-40"
+                  >
+                    {purgeBusy ? "Deleting…" : "Permanently delete them"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPurgeOpen(false);
+                      setPurgePw("");
+                      setPurgeConfirm("");
+                    }}
+                    className="rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs font-semibold text-ink-muted transition hover:text-ink"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+          </>
         ) : null}
 
         {/* Payments */}

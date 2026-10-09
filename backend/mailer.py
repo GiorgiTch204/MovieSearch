@@ -4,7 +4,7 @@ import ssl
 from email.message import EmailMessage
 
 
-def send_notification(subject: str, body: str) -> bool:
+def send_notification(subject: str, body: str, html: str | None = None) -> bool:
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", 465))
     user = os.getenv("SMTP_USER")
@@ -22,7 +22,9 @@ def send_notification(subject: str, body: str) -> bool:
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_addr
-    msg.set_content(body)
+    msg.set_content(body)       
+    if html:
+        msg.add_alternative(html, subtype="html")
     if html:
         msg.add_alternative(html, subtype="html")
 

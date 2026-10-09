@@ -1699,3 +1699,74 @@ def browse_movies(
         "per_page": per_page,
         "counts": counts,
     }
+
+
+class AdminPurge(BaseModel):
+    password: str
+    confirm: str
+
+
+@app.post("/api/admin/users/purge")
+def admin_purge_users(
+    payload: AdminPurge,
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    """Delete every non-admin account.
+
+    Three locks, because one misclick here wipes every customer you have:
+      1. the literal phrase DELETE ALL must be typed
+      2. the acting admin re-enters their own password
+      3. is_admin accounts always survive, including the caller's
+    Payment rows survive with user_id set to NULL (ON DELETE SET NULL), so a
+    cleanup never rewrites your revenue history.
+    """
+    if payload.confirm.strip() != "DELETE ALL":
+        raise HTTPException(status_code=400, detail="Type DELETE ALL to confirm")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT hashed_password FROM users WHERE id = %s;", (admin["id"],))
+        me = cur.fetchone()
+    if (
+        not me
+        or not me["hashed_password"]
+        or not verify_password(payload.password, me["hashed_password"])
+    ):
+        raise HTTPException(status_code=403, detail="That is not your password")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT id FROM users WHERE coalesce(is_admin, FALSE) = FALSE;")
+        victims = [r["id"] for r in cur.fetchall()]
+        if not victims:
+            return {"status": "ok", "deleted": 0, "kept": 0, "searches_removed": 0}
+
+        cur.execute(
+            "DELETE FROM search_log WHERE identity = ANY(%s);",
+            ([f"user:{i}" for i in victims],),
+        )
+        searches_removed = cur.rowcount
+
+        cur.execute(
+            "DELETE FROM users WHERE coalesce(is_admin, FALSE) = FALSE RETURNING id;"
+        )
+        deleted = len(cur.fetchall())
+
+        cur.execute("SELECT count(*) AS n FROM users;")
+        kept = cur.fetchone()["n"]
+        conn.commit()
+
+    audit(
+        conn,
+        admin,
+        "purge_users",
+        None,
+        f"{deleted} accounts",
+        f"{searches_removed} search rows removed, {kept} admins kept",
+    )
+
+    return {
+        "status": "ok",
+        "deleted": deleted,
+        "kept": kept,
+        "searches_removed": searches_removed,
+    }
