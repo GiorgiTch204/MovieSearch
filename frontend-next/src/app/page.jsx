@@ -124,7 +124,10 @@ export default function Home() {
         return;
       }
 
-      if (!res.ok) throw new Error("Search request failed");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Search failed (${res.status})`);
+      }
 
       const data = await res.json();
       setResults(data.results || []);
