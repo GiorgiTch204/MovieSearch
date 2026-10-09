@@ -245,7 +245,7 @@ def consume_quota(conn, user, request: Request) -> Dict[str, Any]:
 @app.get("/api/movies/search")
 def search_movies(
     q: str = Query(..., min_length=1),
-        semantic_weight: float = Query(0.25, ge=0.0, le=1.0),
+    semantic_weight: float = Query(0.25, ge=0.0, le=1.0),
     catalog: Optional[str] = Query(None),
     genre: Optional[str] = Query(None),
     era: Optional[str] = Query(None),
@@ -256,9 +256,8 @@ def search_movies(
     request: Request = None,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_user),
 ):
-    
     try:
-        quota = consume_quota(conn, current_user, request)
+        quota = consume_quota(conn, current_user, request, query=q, catalog=catalog)
         kw_weight = max(0.01, 1.0 - semantic_weight)
         sem_weight = max(0.01, semantic_weight)
 
