@@ -1742,12 +1742,9 @@ def browse_movies(
               count(*)                                             AS all_movies,
               count(*) FILTER (WHERE catalog_source = 'geocinema') AS geocinema,
               count(*) FILTER (WHERE catalog_source IS DISTINCT FROM 'geocinema')
-                                                                   AS tmdb
-              count(*) FILTER (WHERE catalog_source IS DISTINCT FROM 'geocinema')
-                                                                   AS tmdb
-                             ,
+                                                                   AS tmdb,
               count(*) FILTER (WHERE coalesce(media_type, 'movie') = 'tv')
-                                                                   AS tv_series                                                    
+                                                                   AS tv_series
             FROM movies;
             """
         )
