@@ -142,6 +142,18 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 -- ============================================================
+-- 6b. search_log (free-tier quota, rolling 24h window)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS search_log (
+    id BIGSERIAL PRIMARY KEY,
+    identity VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_log_identity_time
+    ON search_log (identity, created_at DESC);
+
+-- ============================================================
 -- 7. Indexes
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_movies_fts

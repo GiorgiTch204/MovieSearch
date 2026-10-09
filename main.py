@@ -178,6 +178,76 @@ def format_movie_item(row: Dict[str, Any], score: float) -> Dict[str, Any]:
     }
 
 
+# ----------------- FREE-TIER QUOTA -----------------
+FREE_SEARCH_LIMIT = int(os.getenv("FREE_SEARCH_LIMIT", 20))
+
+
+def get_optional_user(request: Request, conn=Depends(get_db)):
+    """Like get_current_user, but returns None instead of raising 401."""
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    try:
+        payload = jwt.decode(auth.split(" ", 1)[1], SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+    except JWTError:
+        return None
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, username, email, is_pro FROM users WHERE id = %s;",
+            (int(user_id),),
+        )
+        return cur.fetchone()
+
+
+def client_ip(request: Request) -> str:
+    """Render sits behind a proxy, so the socket address is the proxy's."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def consume_quota(conn, user, request: Request) -> Dict[str, Any]:
+    """Record one search and return quota state. Raises 429 when exhausted."""
+    if user and user.get("is_pro"):
+        return {"unlimited": True, "used": 0, "limit": None}
+
+    identity = f"user:{user['id']}" if user else f"ip:{client_ip(request)}"
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT count(*) FROM search_log
+            WHERE identity = %s AND created_at > now() - interval '24 hours';
+            """,
+            (identity,),
+        )
+        used = cur.fetchone()[0]
+
+        if used >= FREE_SEARCH_LIMIT:
+            conn.commit()
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Free limit of {FREE_SEARCH_LIMIT} searches per 24 hours "
+                    "reached. Upgrade to Pro for unlimited search."
+                ),
+            )
+
+        cur.execute("INSERT INTO search_log (identity) VALUES (%s);", (identity,))
+        cur.execute(
+            "DELETE FROM search_log "
+            "WHERE created_at < now() - interval '48 hours' AND random() < 0.05;"
+        )
+        conn.commit()
+
+    return {"unlimited": False, "used": used + 1, "limit": FREE_SEARCH_LIMIT}
+
+
 # ----------------- SEARCH ENDPOINTS -----------------
 @app.get("/search")
 @app.get("/api/search")
@@ -192,8 +262,12 @@ def search_movies(
     limit: int = Query(24, ge=1, le=100),
     offset: int = Query(0, ge=0),
     conn=Depends(get_db),
+    request: Request = None,
+    current_user: Optional[Dict[str, Any]] = Depends(get_optional_user),
 ):
+    
     try:
+        quota = consume_quota(conn, current_user, request)
         kw_weight = max(0.01, 1.0 - semantic_weight)
         sem_weight = max(0.01, semantic_weight)
 
@@ -284,8 +358,10 @@ def search_movies(
             final_score = min(0.98, raw_sim + boost)
             movies.append(format_movie_item(r, final_score))
 
-        return {"results": movies, "total": len(movies)}
+        return {"results": movies, "total": len(movies), "quota": quota}
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Search Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

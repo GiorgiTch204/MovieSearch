@@ -34,6 +34,8 @@ export default function Home() {
   const [isPricingOpen, setIsPricingOpen] = useState(false);
 
   const [watchlistIds, setWatchlistIds] = useState([]);
+  const [quota, setQuota] = useState(null);
+  const [quotaMessage, setQuotaMessage] = useState("");
 
   // Restore the session from the stored token on first load
   useEffect(() => {
@@ -90,6 +92,18 @@ export default function Home() {
   };
 
   const fetchMovies = useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(
+      `${API_BASE}/api/movies/search?${params.toString()}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+
+    if (res.status === 429) {
+      const err = await res.json();
+      setQuotaMessage(err.detail);
+      setResults([]);
+      return;
+    }
     if (!query.trim()) {
       setResults([]);
       return;
@@ -120,6 +134,8 @@ export default function Home() {
         if (!fallbackRes.ok) throw new Error("Search request failed");
         const data = await fallbackRes.json();
         setResults(data.results || []);
+        setQuota(data.quota || null);
+        setQuotaMessage("");
         return;
       }
 
@@ -182,6 +198,24 @@ export default function Home() {
           <FilterBar filters={filters} setFilters={setFilters} />
         </div>
 
+        {quotaMessage && (
+          <div className="max-w-3xl mx-auto mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-500 flex items-center justify-between gap-3">
+            <span>{quotaMessage}</span>
+            <button
+              onClick={() => setIsPricingOpen(true)}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-semibold"
+            >
+              Upgrade
+            </button>
+          </div>
+        )}
+
+        {quota && !quota.unlimited && (
+          <p className="max-w-3xl mx-auto mb-4 text-xs text-ink-muted">
+            {quota.limit - quota.used} of {quota.limit} free searches left today
+          </p>
+        )}
+
         {/* Results Area */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-ink-muted gap-3">
@@ -193,9 +227,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-medium text-ink-muted">
                 Found{" "}
-                <span className="text-ink font-semibold">
-                  {results.length}
-                </span>{" "}
+                <span className="text-ink font-semibold">{results.length}</span>{" "}
                 movies matching your query:
               </h2>
             </div>
