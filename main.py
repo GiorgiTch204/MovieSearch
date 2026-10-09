@@ -550,7 +550,6 @@ def create_checkout_session(current_user: Dict[str, Any] = Depends(get_current_u
 
     try:
         checkout_session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
             customer_email=current_user["email"],
             line_items=[
                 {
