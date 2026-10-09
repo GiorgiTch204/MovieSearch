@@ -16,6 +16,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 import base64
 import re
+from backend.notify import notify
 
 load_dotenv()
 
@@ -677,6 +678,7 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
                         session.get("payment_status"),
                     ),
                 )
+                first_time = cur.fetchone() is not None
             conn.commit()
             print(f"[webhook] user {user_id} upgraded to Pro")
         except Exception:
@@ -697,19 +699,20 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
             uname = row[0] if row else "unknown"
             uemail = row[1] if row else "unknown"
 
-            send_notification(
-                subject=f"MovieSearch Pro purchase - {uemail}",
-                body=(
-                    f"A user upgraded to Pro.\n\n"
-                    f"Username: {uname}\n"
-                    f"Email:    {uemail}\n"
-                    f"User ID:  {user_id}\n"
-                    f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
-                    f"{(session.get('currency') or '').upper()}\n"
-                    f"Session:  {session.get('id')}\n"
-                    f"Livemode: {event.get('livemode')}\n"
-                ),
-            )
+            if first_time:
+                notify(
+                    subject=f"MovieSearch Pro purchase - {uemail}",
+                    body=(
+                        f"A user upgraded to Pro.\n\n"
+                        f"Username: {uname}\n"
+                        f"Email:    {uemail}\n"
+                        f"User ID:  {user_id}\n"
+                        f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
+                        f"{(session.get('currency') or '').upper()}\n"
+                        f"Session:  {session.get('id')}\n"
+                        f"Livemode: {event.get('livemode')}\n"
+                    ),
+                )
         except Exception as e:
             print(f"[webhook] notification step failed (ignored): {e}")
 
@@ -739,6 +742,15 @@ def register(payload: RegisterRequest, conn=Depends(get_db)):
         )
         user = cur.fetchone()
         conn.commit()
+
+        notify(
+        subject=f"New MovieSearch signup: {user['email']}",
+        body=(
+            f"Username: {user.get('username') or '-'}\n"
+            f"Email:    {user['email']}\n"
+            f"User ID:  {user['id']}\n"
+        ),
+    )
 
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     return {
@@ -1531,12 +1543,16 @@ def confirm_checkout(
         cur.execute(
             "UPDATE users SET is_pro = TRUE WHERE id = %s;", (current_user["id"],)
         )
+        # RETURNING tells us whether this is the first time we have recorded
+        # this checkout. The webhook may also process the same session, so the
+        # insert is what decides who sends the alert -- exactly one of them.
         cur.execute(
             """
             INSERT INTO payments
                 (user_id, stripe_session_id, amount, currency, status)
             VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (stripe_session_id) DO NOTHING;
+            ON CONFLICT (stripe_session_id) DO NOTHING
+            RETURNING id;
             """,
             (
                 current_user["id"],
@@ -1546,11 +1562,25 @@ def confirm_checkout(
                 session.get("payment_status"),
             ),
         )
+        first_time = cur.fetchone() is not None
         conn.commit()
 
     print(f"[confirm] user {current_user['id']} upgraded to Pro")
-    return {"status": "paid", "is_pro": True}
 
+    if first_time:
+        notify(
+            subject=f"MovieSearch Pro purchase - {current_user['email']}",
+            body=(
+                f"Username: {current_user.get('username') or '-'}\n"
+                f"Email:    {current_user['email']}\n"
+                f"User ID:  {current_user['id']}\n"
+                f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
+                f"{(session.get('currency') or '').upper()}\n"
+                f"Session:  {session.get('id')}\n"
+            ),
+        )
+
+    return {"status": "paid", "is_pro": True}
 
 
 # ----------------- CATALOGUE BROWSING -----------------
