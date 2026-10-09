@@ -1,5 +1,6 @@
 import os
 import json
+from sys import audit
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -1085,6 +1086,8 @@ def admin_update_user(
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
         conn.commit()
+        audit(conn, _admin, "grant_pro" if payload.is_pro else "revoke_pro",
+          user_id, row["username"] or row["email"])
 
     return row
 
@@ -1258,6 +1261,7 @@ def admin_delete_user(
     user_id: int,
     admin: Dict[str, Any] = Depends(get_admin_user),
     conn=Depends(get_db),
+    
 ):
     """Permanently delete an account.
 
@@ -1283,8 +1287,8 @@ def admin_delete_user(
             raise HTTPException(
                 status_code=403,
                 detail=(
-                    "That account is an admin. Revoke it first from a terminal "
-                    "(python backend/make_admin.py <email> --revoke), then delete."
+                    "That account is an admin. Revoke its admin rights first "
+                    "(in the account's Details panel), then delete it."
                 ),
             )
 
@@ -1294,6 +1298,10 @@ def admin_delete_user(
         searches_removed = cur.rowcount
         cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
         conn.commit()
+
+        audit(conn, admin, "delete_user", user_id,
+          target["username"] or target["email"],
+          f"{searches_removed} search rows removed")
 
     return {
         "status": "deleted",
@@ -1335,4 +1343,107 @@ def admin_reset_password(
             raise HTTPException(status_code=404, detail="User not found")
         conn.commit()
 
+        audit(conn, _admin, "reset_password", user_id, row["username"] or row["email"])
+
     return {"status": "password_set", **row}
+
+def audit(conn, actor, action, target_id=None, target_label=None, detail=None):
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO admin_audit
+                    (actor_id, actor_label, action, target_id, target_label, detail)
+                VALUES (%s, %s, %s, %s, %s, %s);
+                """,
+                (actor["id"], actor.get("username") or actor.get("email"),
+                 action, target_id, target_label, detail),
+            )
+            conn.commit()
+    except Exception:
+        # Never let a failed audit write break the action it describes.
+        conn.rollback()
+
+
+class AdminRoleUpdate(BaseModel):
+    grant: bool
+    password: str
+
+
+@app.post("/api/admin/users/{user_id}/admin")
+def admin_set_role(
+    user_id: int,
+    payload: AdminRoleUpdate,
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    if user_id == admin["id"]:
+        raise HTTPException(
+            status_code=400, detail="You cannot change your own admin rights"
+        )
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT hashed_password FROM users WHERE id = %s;", (admin["id"],))
+        me = cur.fetchone()
+    if (not me or not me["hashed_password"]
+            or not verify_password(payload.password, me["hashed_password"])):
+        raise HTTPException(status_code=403, detail="That is not your password")
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, username, email, coalesce(is_admin, FALSE) AS is_admin "
+            "FROM users WHERE id = %s;", (user_id,))
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if target["is_admin"] == payload.grant:
+            raise HTTPException(
+                status_code=400,
+                detail=f"That account is already {'an admin' if payload.grant else 'a normal user'}",
+            )
+
+        if not payload.grant:
+            cur.execute("SELECT count(*) AS n FROM users WHERE is_admin;")
+            if cur.fetchone()["n"] <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This is the last admin account. Promote someone else first.",
+                )
+
+        cur.execute(
+            """
+            UPDATE users SET is_admin = %s WHERE id = %s
+            RETURNING id, username, email,
+                      coalesce(is_pro, FALSE)   AS is_pro,
+                      coalesce(is_admin, FALSE) AS is_admin;
+            """,
+            (payload.grant, user_id),
+        )
+        row = cur.fetchone()
+        conn.commit()
+
+    audit(conn, admin, "grant_admin" if payload.grant else "revoke_admin",
+          user_id, target["username"] or target["email"])
+    return row
+
+
+@app.get("/api/admin/audit")
+def admin_audit_log(
+    limit: int = Query(60, ge=1, le=300),
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT id, actor_id, actor_label, action,
+                   target_id, target_label, detail, created_at
+            FROM admin_audit
+            ORDER BY created_at DESC, id DESC
+            LIMIT %s;
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+    return {"entries": rows}

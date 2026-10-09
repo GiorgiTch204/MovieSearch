@@ -21,6 +21,8 @@ import {
   KeyRound,
   X,
   AlertTriangle,
+  ScrollText,
+  UserCog,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 
@@ -29,6 +31,15 @@ const API = (
 ).replace(/\/$/, "");
 
 const PAGE_SIZE = 20;
+
+const ACTION_LABEL = {
+  grant_admin: "made an admin:",
+  revoke_admin: "removed admin from:",
+  grant_pro: "granted Pro to:",
+  revoke_pro: "revoked Pro from:",
+  delete_user: "deleted the account:",
+  reset_password: "set a new password for:",
+};
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -260,13 +271,15 @@ const Row = ({ label, children }) => (
   </div>
 );
 
-const UserDrawer = ({ userId, onClose, onChanged }) => {
+const UserDrawer = ({ userId, meId, onClose, onChanged }) => {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
   const [pw, setPw] = useState("");
   const [pwDone, setPwDone] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [rolePw, setRolePw] = useState("");
+  const [roleMsg, setRoleMsg] = useState("");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -275,12 +288,15 @@ const UserDrawer = ({ userId, onClose, onChanged }) => {
     setPw("");
     setPwDone("");
     setConfirmDelete(false);
+    setRolePw("");
+    setRoleMsg("");
     apiGet(`/api/admin/users/${userId}`)
       .then(setData)
       .catch((e) => setErr(e.message));
   }, [userId]);
 
   const u = data?.user;
+  const isSelf = u && meId === u.id;
 
   const doDelete = async () => {
     setBusy("delete");
@@ -292,6 +308,30 @@ const UserDrawer = ({ userId, onClose, onChanged }) => {
     } catch (e) {
       setErr(e.message);
       setConfirmDelete(false);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const doRole = async (grant) => {
+    setBusy("role");
+    setErr("");
+    setRoleMsg("");
+    try {
+      const row = await apiSend(`/api/admin/users/${userId}/admin`, "POST", {
+        grant,
+        password: rolePw,
+      });
+      setRolePw("");
+      setRoleMsg(
+        grant
+          ? `${row.username || row.email} is now an admin.`
+          : `${row.username || row.email} is no longer an admin.`,
+      );
+      setData((d) => (d ? { ...d, user: { ...d.user, is_admin: grant } } : d));
+      onChanged();
+    } catch (e) {
+      setErr(e.message);
     } finally {
       setBusy("");
     }
@@ -467,6 +507,58 @@ const UserDrawer = ({ userId, onClose, onChanged }) => {
                 ) : null}
               </section>
 
+              <section>
+                <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  <UserCog className="h-3 w-3" /> Admin rights
+                </h3>
+                {isSelf ? (
+                  <p className="text-xs text-ink-muted">
+                    This is the account you are signed in as. You cannot change
+                    your own admin rights — ask another admin, or use
+                    backend/make_admin.py from a terminal.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-xs text-ink-muted">
+                      {u.is_admin
+                        ? "This account can see and change everything on this page."
+                        : "Granting admin gives this account full access to every user, payment and search on this dashboard."}{" "}
+                      Confirm with <strong>your own</strong> password.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={rolePw}
+                        onChange={(e) => setRolePw(e.target.value)}
+                        placeholder="your password"
+                        autoComplete="current-password"
+                        className="min-w-0 flex-1 rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => doRole(!u.is_admin)}
+                        disabled={!rolePw || busy === "role"}
+                        className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-40 ${
+                          u.is_admin
+                            ? "bg-rose-600 hover:bg-rose-500"
+                            : "bg-amber-600 hover:bg-amber-500"
+                        }`}
+                      >
+                        {busy === "role"
+                          ? "Saving…"
+                          : u.is_admin
+                            ? "Revoke admin"
+                            : "Make admin"}
+                      </button>
+                    </div>
+                    {roleMsg ? (
+                      <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                        {roleMsg}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </section>
+
               <section className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
                 <h3 className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
                   <AlertTriangle className="h-3 w-3" /> Delete account
@@ -478,8 +570,8 @@ const UserDrawer = ({ userId, onClose, onChanged }) => {
                 </p>
                 {u.is_admin ? (
                   <p className="text-xs text-ink-muted">
-                    This account is an admin. Revoke admin from a terminal
-                    first.
+                    Revoke this account&apos;s admin rights above before
+                    deleting it.
                   </p>
                 ) : confirmDelete ? (
                   <div className="flex gap-2">
@@ -529,6 +621,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState({ users: [], total: 0 });
   const [payments, setPayments] = useState({ payments: [], total: 0 });
   const [searches, setSearches] = useState({ recent: [], top: [] });
+  const [auditLog, setAuditLog] = useState({ entries: [] });
 
   const [query, setQuery] = useState("");
   const [plan, setPlan] = useState("all");
@@ -578,11 +671,21 @@ export default function AdminPage() {
     setSearches(await apiGet("/api/admin/searches?limit=60"));
   }, []);
 
+  const loadAudit = useCallback(async () => {
+    setAuditLog(await apiGet("/api/admin/audit?limit=60"));
+  }, []);
+
   useEffect(() => {
     if (gate !== "ok") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOverview().catch((e) => setError(e.message));
   }, [gate, loadOverview]);
+
+  useEffect(() => {
+    if (gate !== "ok" || tab !== "audit") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAudit().catch((e) => setError(e.message));
+  }, [gate, tab, loadAudit]);
 
   useEffect(() => {
     if (gate !== "ok" || tab !== "users") return;
@@ -617,6 +720,7 @@ export default function AdminPage() {
       if (tab === "users") await loadUsers();
       if (tab === "payments") await loadPayments();
       if (tab === "searches") await loadSearches();
+      if (tab === "audit") await loadAudit();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -830,6 +934,7 @@ export default function AdminPage() {
             { id: "users", label: "Users", icon: Users },
             { id: "payments", label: "Payments", icon: CreditCard },
             { id: "searches", label: "Search activity", icon: Search },
+            { id: "audit", label: "Activity log", icon: ScrollText },
           ].map((t) => (
             <button
               key={t.id}
@@ -1247,11 +1352,57 @@ export default function AdminPage() {
             </div>
           </div>
         ) : null}
+
+        {/* Activity log */}
+        {tab === "audit" ? (
+          <Panel
+            title="Admin activity log"
+            subtitle="Every privileged action taken from this dashboard"
+          >
+            <ul className="divide-y divide-[color:var(--line)]">
+              {auditLog.entries.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-ink">
+                      <span className="font-semibold">
+                        {a.actor_label || "unknown"}
+                      </span>{" "}
+                      <span className="text-ink-muted">
+                        {ACTION_LABEL[a.action] || a.action}
+                      </span>{" "}
+                      <span className="font-semibold">
+                        {a.target_label || `#${a.target_id ?? "?"}`}
+                      </span>
+                    </p>
+                    {a.detail ? (
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {a.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-ink-muted sm:text-[11px]">
+                    <Clock className="h-3 w-3" /> {fmtDateTime(a.created_at)}
+                  </span>
+                </li>
+              ))}
+              {auditLog.entries.length === 0 ? (
+                <li className="px-4 py-10 text-center text-sm text-ink-muted">
+                  Nothing recorded yet. Actions you take here will appear in
+                  this list.
+                </li>
+              ) : null}
+            </ul>
+          </Panel>
+        ) : null}
       </div>
 
       {openUser !== null ? (
         <UserDrawer
           userId={openUser}
+          meId={me?.id}
           onClose={() => setOpenUser(null)}
           onChanged={() => {
             loadUsers().catch((e) => setError(e.message));

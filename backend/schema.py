@@ -168,6 +168,23 @@ CREATE INDEX IF NOT EXISTS idx_search_log_identity_time
     ON search_log (identity, created_at DESC);
 
 -- ============================================================
+-- 6c. admin_audit (who did what from the admin dashboard)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS admin_audit (
+    id BIGSERIAL PRIMARY KEY,
+    actor_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    actor_label  VARCHAR(255),
+    action       VARCHAR(64) NOT NULL,
+    target_id    BIGINT,
+    target_label VARCHAR(255),
+    detail       TEXT,
+    created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_time
+    ON admin_audit (created_at DESC);
+
+-- ============================================================
 -- 7. Indexes
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_movies_fts
