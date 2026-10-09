@@ -71,7 +71,7 @@ export const Navbar = ({
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="p-2 rounded-xl bg-blue-600/10 text-blue-500 border border-blue-500/20 group-hover:scale-105 transition">
+            <div className="p-2 rounded-xl bg-blue-600/10 text-blue-500 border border-blue-500/20 group-hover:scale-105 transition" href="/">
               🎬
             </div>
             <span className="font-bold text-lg text-ink tracking-tight">
