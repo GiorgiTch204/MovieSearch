@@ -1675,20 +1675,6 @@ def browse_movies(
     per_page: int = Query(24, ge=1, le=60),
     conn=Depends(get_db),
 ):
-    """Plain catalogue browsing: filter, sort, paginate.
-
-    Deliberately does NOT call consume_quota. Paging through the catalogue is
-    not a semantic search -- it runs no embedding and costs nothing to answer,
-    so it must not eat anybody's free search allowance.
-
-    Columns are listed explicitly rather than SELECT *: the movies table holds
-    a 384-dimension embedding and a tsvector per row, and shipping those for
-    24 rows a page would be megabytes of pure waste.
-
-    The tab counts come back with every page rather than from their own route,
-    because /api/movies/counts would be captured by the /api/movies/{movie_id}
-    route registered above it and 422 on the int parse.
-    """
     order = BROWSE_ORDER.get(sort, BROWSE_ORDER["posters"])
 
     where, params = [], {}
@@ -1711,6 +1697,11 @@ def browse_movies(
               count(*) FILTER (WHERE catalog_source = 'geocinema') AS geocinema,
               count(*) FILTER (WHERE catalog_source IS DISTINCT FROM 'geocinema')
                                                                    AS tmdb
+              count(*) FILTER (WHERE catalog_source IS DISTINCT FROM 'geocinema')
+                                                                   AS tmdb
+                             ,
+              count(*) FILTER (WHERE coalesce(media_type, 'movie') = 'tv')
+                                                                   AS tv_series                                                    
             FROM movies;
             """
         )

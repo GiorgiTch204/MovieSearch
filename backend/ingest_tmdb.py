@@ -196,6 +196,8 @@ def main():
     ap.add_argument("--find", default=None, help='fetch one title by name')
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--skip-embed", action="store_true")
+    ap.add_argument("--embed-only", action="store_true",
+                    help="skip fetching; just embed rows whose embedding is NULL")
     args = ap.parse_args()
 
     key = get_tmdb_key()
@@ -211,6 +213,10 @@ def main():
 
     conn = psycopg2.connect(get_db_url())
     try:
+        if args.embed_only:
+            embed_missing(conn)
+            return 0
+
         with conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM movies;")
             before = cur.fetchone()[0]

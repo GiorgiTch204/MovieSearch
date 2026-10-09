@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Globe,
   Clapperboard,
+  Tv,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import MovieCard from "@/components/MovieCard";
@@ -23,8 +24,10 @@ const API_BASE = (
 
 const PER_PAGE = 24;
 
+// "tv" is a media_type, not a catalogue -- the tab carries the parameter it
+// sets so the two dimensions do not have to be squashed into one value.
 const TABS = [
-  { id: "all", label: "All movies", icon: Film, countKey: "all_movies" },
+  { id: "all", label: "All titles", icon: Film, countKey: "all_movies" },
   {
     id: "geocinema",
     label: "Georgian",
@@ -32,10 +35,10 @@ const TABS = [
     countKey: "geocinema",
   },
   { id: "tmdb", label: "International", icon: Globe, countKey: "tmdb" },
+  { id: "tv", label: "TV series", icon: Tv, countKey: "tv_series" },
 ];
 
 const SORTS = [
-  { id: "posters", label: "With posters first" },
   { id: "newest", label: "Newest first" },
   { id: "oldest", label: "Oldest first" },
   { id: "rating", label: "Highest rated" },
@@ -73,7 +76,7 @@ function MoviesBrowser() {
   // URL is the source of truth, so browser Back steps through pages and tabs,
   // and any view can be linked to or bookmarked.
   const catalog = searchParams.get("catalog") || "all";
-  const sort = searchParams.get("sort") || "posters";
+  const sort = searchParams.get("sort") || "newest";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
 
   const [data, setData] = useState(null);
@@ -118,7 +121,8 @@ function MoviesBrowser() {
       per_page: String(PER_PAGE),
       sort,
     });
-    if (catalog !== "all") p.set("catalog", catalog);
+    if (catalog === "tv") p.set("media_type", "tv");
+    else if (catalog !== "all") p.set("catalog", catalog);
 
     fetch(`${API_BASE}/api/movies?${p.toString()}`)
       .then(async (res) => {
