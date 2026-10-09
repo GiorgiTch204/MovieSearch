@@ -756,6 +756,7 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
                         (user_id, stripe_session_id, amount, currency, status)
                     VALUES (%s, %s, %s, %s, %s)
                     ON CONFLICT (stripe_session_id) DO NOTHING;
+                    returning id;
                     """,
                     (
                         int(user_id),
@@ -789,19 +790,19 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
             if first_time:
                 amount = f"{(session.get('amount_total') or 0) / 100:.2f} {(session.get('currency') or '').upper()}"
                 notify(
-                    subject=f"MovieSearch Pro purchase - {current_user['email']}",
+                    subject=f"MovieSearch Pro purchase - {uemail}",
                     body=(
-                        f"Username: {current_user.get('username') or '-'}\n"
-                        f"Email:    {current_user['email']}\n"
+                        f"Username: {uname or '-'}\n"
+                        f"Email:    {uemail}\n"
                         f"Amount:   {amount}\n"
                         f"Session:  {session.get('id')}\n"
                     ),
                     title=f"Pro purchase - {amount}",
                     subtitle="Payment received",
                     rows=[
-                        ("Username", current_user.get("username") or "-"),
-                        ("Email", current_user["email"]),
-                        ("User ID", f"#{current_user['id']}"),
+                        ("Username", uname or "-"),
+                        ("Email", uemail),
+                        ("User ID", f"#{user_id}"),
                         ("Amount", amount),
                         ("Session", session.get("id")),
                     ],
