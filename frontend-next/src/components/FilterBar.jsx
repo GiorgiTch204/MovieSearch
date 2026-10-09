@@ -1,7 +1,48 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+).replace(/\/$/, "");
+
+const TYPES = [
+  { value: "", label: "ყველა / All types" },
+  { value: "movie", label: "ფილმები / Movies" },
+  { value: "tv", label: "სერიალები / TV series" },
+];
+
+const CATALOGS = [
+  { value: "", label: "ყველა კატალოგი (All)" },
+  { value: "geocinema", label: "ქართული კინოკლასიკა (Geocinema)" },
+  { value: "tmdb", label: "საერთაშორისო (TMDb)" },
+];
+
+const ERAS = [
+  { value: "", label: "ნებისმიერი პერიოდი (Any)" },
+  { value: "before_1950", label: "1950 წლამდე (Before 1950)" },
+  { value: "1950s", label: "1950-იანი (1950s)" },
+  { value: "1960s", label: "1960-იანი (1960s)" },
+  { value: "1970s", label: "1970-იანი (1970s)" },
+  { value: "1980s", label: "1980-იანი (1980s)" },
+  { value: "1990s", label: "1990-იანი (1990s)" },
+  { value: "2000s", label: "2000-იანი (2000s)" },
+  { value: "2010s", label: "2010-იანი (2010s)" },
+  { value: "2020s", label: "2020-იანი (2020s)" },
+];
+
+const RATINGS = [
+  { value: "", label: "ნებისმიერი (Any)" },
+  { value: "6", label: "★ 6.0+" },
+  { value: "7", label: "★ 7.0+" },
+  { value: "8", label: "★ 8.0+" },
+];
+
+const field =
+  "bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer";
+const label =
+  "text-[11px] font-semibold tracking-wider text-ink-muted uppercase";
 
 export function FilterBar({
   filters = {},
@@ -16,10 +57,14 @@ export function FilterBar({
   setSemanticWeight,
   catalog,
   setCatalog,
+  mediaType,
+  setMediaType,
 }) {
   // Support both unified object state and individual props seamlessly
   const currentCatalog =
     catalog !== undefined ? catalog : filters.catalog || "";
+  const currentType =
+    mediaType !== undefined ? mediaType : filters.mediaType || "";
   const currentGenre =
     selectedGenre !== undefined ? selectedGenre : filters.genre || "";
   const currentEra = era !== undefined ? era : filters.era || "";
@@ -32,6 +77,17 @@ export function FilterBar({
         ? filters.semanticWeight
         : 0.5;
 
+  // Genres come from the database rather than a hardcoded list. A fixed list
+  // drifts out of step with the data -- the previous one offered "Sci-Fi",
+  // which never matched anything, because TMDb writes "Science Fiction".
+  const [genres, setGenres] = useState([]);
+  useEffect(() => {
+    fetch(`${API_BASE}/api/genres`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setGenres(d.genres || []))
+      .catch(() => {});
+  }, []);
+
   const handleUpdate = (key, value, setter) => {
     if (setter) setter(value);
     if (setFilters) {
@@ -41,75 +97,83 @@ export function FilterBar({
 
   return (
     <div className="bg-surface-1/90 border border-line rounded-2xl p-4 backdrop-blur space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-        {/* Catalog Filter */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Type */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
-            კატალოგი / Catalog
-          </label>
+          <label className={label}>ტიპი / Type</label>
+          <select
+            value={currentType}
+            onChange={(e) =>
+              handleUpdate("mediaType", e.target.value || null, setMediaType)
+            }
+            className={field}
+          >
+            {TYPES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Catalog */}
+        <div className="flex flex-col gap-1.5">
+          <label className={label}>კატალოგი / Catalog</label>
           <select
             value={currentCatalog}
             onChange={(e) =>
               handleUpdate("catalog", e.target.value || null, setCatalog)
             }
-            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={field}
           >
-            <option value="">ყველა კატალოგი (All)</option>
-            <option value="geocinema">ქართული კინოკლასიკა (Geocinema)</option>
-            <option value="tmdb">საერთაშორისო (TMDb)</option>
+            {CATALOGS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Genre Filter */}
+        {/* Genre */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
-            ჟანრი / Genre
-          </label>
+          <label className={label}>ჟანრი / Genre</label>
           <select
             value={currentGenre}
             onChange={(e) =>
               handleUpdate("genre", e.target.value || null, setSelectedGenre)
             }
-            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={field}
           >
             <option value="">ყველა ჟანრი (All)</option>
-            <option value="კომედია">კომედია</option>
-            <option value="დრამა">დრამა</option>
-            <option value="სათავგადასავლო">სათავგადასავლო</option>
-            <option value="Action">Action</option>
-            <option value="Comedy">Comedy</option>
-            <option value="Drama">Drama</option>
-            <option value="Horror">Horror</option>
-            <option value="Sci-Fi">Sci-Fi</option>
-            <option value="Thriller">Thriller</option>
+            {genres.map((g) => (
+              <option key={g.genre} value={g.genre}>
+                {g.genre} ({g.n})
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Era Filter */}
+        {/* Era */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
-            ეპოქა / Era
-          </label>
+          <label className={label}>ეპოქა / Era</label>
           <select
             value={currentEra}
             onChange={(e) =>
               handleUpdate("era", e.target.value || null, setEra)
             }
-            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={field}
           >
-            <option value="">ნებისმიერი პერიოდი (Any)</option>
-            <option value="before_1990">1990 წლამდე (Before 1990)</option>
-            <option value="1990s">1990-იანი წლები (1990s)</option>
-            <option value="2000s">2000-იანი წლები (2000s)</option>
-            <option value="2010_plus">2010 და შემდეგ (2010+)</option>
+            {ERAS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Min Rating Filter */}
+        {/* Min rating */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
-            მინ. რეიტინგი / Min Rating
-          </label>
+          <label className={label}>მინ. რეიტინგი / Min Rating</label>
           <select
             value={currentRating}
             onChange={(e) =>
@@ -119,12 +183,13 @@ export function FilterBar({
                 setMinRating,
               )
             }
-            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={field}
           >
-            <option value="">ნებისმიერი (Any)</option>
-            <option value="6">★ 6.0+</option>
-            <option value="7">★ 7.0+</option>
-            <option value="8">★ 8.0+</option>
+            {RATINGS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

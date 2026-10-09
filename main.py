@@ -290,6 +290,47 @@ def consume_quota(conn, user, request: Request, query=None, catalog=None) -> Dic
 
     return {"unlimited": False, "used": used + 1, "limit": FREE_SEARCH_LIMIT}
 
+# ----------------- FILTER VOCABULARY -----------------
+# The catalogue now spans 1916-2026, so "before 1990 / 1990s / 2000s / 2010+"
+# lumps seven decades of Georgian archive film into one bucket. The last two
+# keys are the old values, kept so bookmarked URLs keep working.
+ERAS = {
+    "before_1950": (None, 1949),
+    "1950s": (1950, 1959),
+    "1960s": (1960, 1969),
+    "1970s": (1970, 1979),
+    "1980s": (1980, 1989),
+    "1990s": (1990, 1999),
+    "2000s": (2000, 2009),
+    "2010s": (2010, 2019),
+    "2020s": (2020, 2029),
+    "before_1990": (None, 1989),
+    "2010_plus": (2010, None),
+}
+
+
+@app.get("/api/genres")
+def list_genres(conn=Depends(get_db)):
+    """Genres actually present in the data, with counts.
+
+    The frontend used to hardcode this list, which drifts: it offered
+    "Sci-Fi", and TMDb writes "Science Fiction", so that option matched
+    nothing at all. genre holds a comma-separated string, so it is split
+    before counting.
+    """
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT btrim(g) AS genre, count(*) AS n
+            FROM movies, unnest(string_to_array(genre, ',')) AS g
+            WHERE genre IS NOT NULL AND btrim(g) <> ''
+            GROUP BY 1
+            HAVING count(*) >= 5
+            ORDER BY n DESC, 1;
+            """
+        )
+        return {"genres": cur.fetchall()}
+
 # ----------------- SEARCH ENDPOINTS -----------------
 @app.get("/search")
 @app.get("/api/search")
@@ -298,6 +339,7 @@ def search_movies(
     q: str = Query(..., min_length=1),
     semantic_weight: float = Query(0.25, ge=0.0, le=1.0),
     catalog: Optional[str] = Query(None),
+    media_type: Optional[str] = Query(None),
     genre: Optional[str] = Query(None),
     era: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None),
@@ -315,15 +357,7 @@ def search_movies(
         q_emb = model.encode(q, normalize_embeddings=True).tolist()
         vec_str = f"[{','.join(str(x) for x in q_emb)}]"
 
-        year_min, year_max = None, None
-        if era == "before_1990":
-            year_max = 1989
-        elif era == "1990s":
-            year_min, year_max = 1990, 1999
-        elif era == "2000s":
-            year_min, year_max = 2000, 2009
-        elif era == "2010_plus":
-            year_min = 2010
+        year_min, year_max = ERAS.get(era or "", (None, None))
 
         sql = """
         WITH semantic_search AS (
@@ -336,7 +370,8 @@ def search_movies(
               AND (%(year_max)s IS NULL OR release_year <= %(year_max)s)
               AND (%(genre)s IS NULL OR genre ILIKE %(genre_like)s)
               AND (%(min_rating)s IS NULL OR vote_average >= %(min_rating)s OR vote_average IS NULL)
-            LIMIT 60
+              AND (%(media_type)s IS NULL OR coalesce(media_type, 'movie') = %(media_type)s)
+             LIMIT 60
         ),
         text_search AS (
             SELECT id, 
@@ -381,6 +416,7 @@ def search_movies(
                     "sem_w": sem_weight,
                     "kw_w": kw_weight,
                     "catalog": catalog,
+                    "media_type": media_type if media_type in ("movie", "tv") else None,
                     "genre": genre,
                     "genre_like": f"%{genre}%" if genre else None,
                     "year_min": year_min,
@@ -1632,6 +1668,7 @@ BROWSE_ORDER = {
 @app.get("/api/movies")
 def browse_movies(
     catalog: Optional[str] = Query(None),
+    media_type: Optional[str] = Query(None),
     genre: Optional[str] = Query(None),
     sort: str = Query("posters"),
     page: int = Query(1, ge=1),
@@ -1658,6 +1695,9 @@ def browse_movies(
     if catalog in ("geocinema", "tmdb"):
         where.append("catalog_source = %(catalog)s")
         params["catalog"] = catalog
+    if media_type in ("movie", "tv"):
+        where.append("coalesce(media_type, 'movie') = %(media_type)s")
+        params["media_type"] = media_type
     if genre and genre.strip():
         where.append("genre ILIKE %(genre)s")
         params["genre"] = f"%{genre.strip()}%"
