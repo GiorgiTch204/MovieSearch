@@ -8,6 +8,6 @@ tokenizers
 huggingface_hub
 numpy
 passlib[bcrypt]
+bcrypt<4.1
 python-jose[cryptography]
 stripe
-bcrypt<4.1

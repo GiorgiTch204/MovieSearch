@@ -80,6 +80,14 @@ export const Navbar = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
+            {currentUser && (
+              <Link
+                href="/watchlist"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition flex items-center gap-1.5"
+              >
+                <Bookmark className="w-3.5 h-3.5" /> Watchlist
+              </Link>
+            )}
             {/* Upgrade to Pro Button */}
             <button
               onClick={onOpenPricing}
