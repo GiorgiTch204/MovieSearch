@@ -1,6 +1,5 @@
 import os
 import json
-from sys import audit
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -57,6 +56,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+def stripe_dict(obj) -> Dict[str, Any]:
+    """stripe-python >= 8 returns StripeObject, which is NOT a dict and has no
+    .get(). Convert the whole tree once, then treat it as ordinary data."""
+    if isinstance(obj, dict):
+        return obj
+    to_dict = getattr(obj, "to_dict", None)
+    return to_dict() if callable(to_dict) else dict(obj)
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -230,41 +237,7 @@ def client_ip(request: Request) -> str:
 
 
 def consume_quota(conn, user, request: Request) -> Dict[str, Any]:
-    """Record one search and return quota state. Raises 429 when exhausted."""
-    if user and user.get("is_pro"):
-        return {"unlimited": True, "used": 0, "limit": None}
-
-    identity = f"user:{user['id']}" if user else f"ip:{client_ip(request)}"
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT count(*) FROM search_log
-            WHERE identity = %s AND created_at > now() - interval '24 hours';
-            """,
-            (identity,),
-        )
-        used = cur.fetchone()[0]
-
-        if used >= FREE_SEARCH_LIMIT:
-            conn.commit()
-            raise HTTPException(
-                status_code=429,
-                detail=(
-                    f"Free limit of {FREE_SEARCH_LIMIT} searches per 24 hours "
-                    "reached. Upgrade to Pro for unlimited search."
-                ),
-            )
-
-        cur.execute("INSERT INTO search_log (identity) VALUES (%s);", (identity,))
-        cur.execute(
-            "DELETE FROM search_log "
-            "WHERE created_at < now() - interval '48 hours' AND random() < 0.05;"
-        )
-        conn.commit()
-
-    return {"unlimited": False, "used": used + 1, "limit": FREE_SEARCH_LIMIT}
-
+    quota = consume_quota(conn, current_user, request, query=q, catalog=catalog)
 
 # ----------------- SEARCH ENDPOINTS -----------------
 @app.get("/search")
@@ -615,7 +588,12 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
     except Exception as e:
         print(f"Webhook signature verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook payload or signature")
+
     
+    # stripe-python >= 8 returns StripeObject, which is NOT a dict and has no
+    # .get(). Convert the whole tree once, then the code below works as written.
+    event = stripe_dict(event)
+
     if event.get("type") == "checkout.session.completed":
         session = event["data"]["object"]
         user_id = session.get("metadata", {}).get("user_id")
@@ -734,7 +712,8 @@ def login(payload: LoginRequest, conn=Depends(get_db)):
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
             """
-            SELECT id, username, email, hashed_password, is_pro, created_at,
+            SELECT id, username, email, hashed_password, is_pro, is_admin,
+                   created_at,
                    (avatar IS NOT NULL) AS has_avatar, avatar_updated_at
             FROM users 
             WHERE LOWER(email) = %s OR LOWER(username) = %s;
@@ -759,6 +738,7 @@ def login(payload: LoginRequest, conn=Depends(get_db)):
         "created_at": user.get("created_at"),
         "has_avatar": user.get("has_avatar", False),
         "avatar_updated_at": user.get("avatar_updated_at"),
+        "is_admin": user.get("is_admin", False),
     }
 
     return {
@@ -1465,7 +1445,7 @@ def confirm_checkout(
     stripe.api_key = secret_key
 
     try:
-        session = stripe.checkout.Session.retrieve(payload.session_id)
+        session = stripe_dict(stripe.checkout.Session.retrieve(payload.session_id))
     except Exception as e:
         print(f"[confirm] could not retrieve session {payload.session_id}: {e}")
         raise HTTPException(status_code=400, detail="Unknown checkout session")
