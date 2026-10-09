@@ -92,18 +92,6 @@ export default function Home() {
   };
 
   const fetchMovies = useCallback(async () => {
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch(
-      `${API_BASE}/api/movies/search?${params.toString()}`,
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-    );
-
-    if (res.status === 429) {
-      const err = await res.json();
-      setQuotaMessage(err.detail);
-      setResults([]);
-      return;
-    }
     if (!query.trim()) {
       setResults([]);
       return;
@@ -122,25 +110,25 @@ export default function Home() {
       if (filters.minRating)
         params.append("min_rating", filters.minRating.toString());
 
-      // Queries the FastAPI backend
+      const token = localStorage.getItem("auth_token");
       const res = await fetch(
         `${API_BASE}/api/movies/search?${params.toString()}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
-      if (!res.ok) {
-        // Fallback check if route is mapped to /api/search
-        const fallbackRes = await fetch(
-          `${API_BASE}/api/search?${params.toString()}`,
-        );
-        if (!fallbackRes.ok) throw new Error("Search request failed");
-        const data = await fallbackRes.json();
-        setResults(data.results || []);
-        setQuota(data.quota || null);
-        setQuotaMessage("");
+
+      if (res.status === 429) {
+        const err = await res.json();
+        setQuotaMessage(err.detail);
+        setResults([]);
         return;
       }
 
+      if (!res.ok) throw new Error("Search request failed");
+
       const data = await res.json();
       setResults(data.results || []);
+      setQuota(data.quota || null);
+      setQuotaMessage("");
     } catch (err) {
       console.error("Fetch error:", err);
       setResults([]);
