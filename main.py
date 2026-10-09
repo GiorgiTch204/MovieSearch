@@ -3,7 +3,7 @@ import json
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-
+from backend.mailer import send_notification
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, HTTPException, Depends, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -606,7 +606,6 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
                 return {"status": "ignored"}
 
             if user_id:
-
                 with conn.cursor() as cur:
                     cur.execute("UPDATE users SET is_pro = TRUE WHERE id = %s;", (int(user_id),))
                     cur.execute(
@@ -625,6 +624,27 @@ async def stripe_webhook(request: Request, conn=Depends(get_db)):
                     )
                     conn.commit()
                     print(f"Payment successful: User {user_id} upgraded to Pro.")
+                    cur.execute(
+                        "SELECT username, email FROM users WHERE id = %s;",
+                        (int(user_id),),
+                    )
+                    row = cur.fetchone()
+                    uname = row[0] if row else "unknown"
+                    uemail = row[1] if row else "unknown"
+
+                    send_notification(
+                        subject=f"MovieSearch Pro purchase - {uemail}",
+                        body=(
+                            f"A user upgraded to Pro.\n\n"
+                            f"Username: {uname}\n"
+                            f"Email:    {uemail}\n"
+                            f"User ID:  {user_id}\n"
+                            f"Amount:   {(session.get('amount_total') or 0) / 100:.2f} "
+                            f"{(session.get('currency') or '').upper()}\n"
+                            f"Session:  {session.get('id')}\n"
+                            f"Livemode: {event.get('livemode')}\n"
+                        ),
+                    )
 
     return {"status": "success"}
 
