@@ -36,3 +36,50 @@ body {
   background: var(--surface-0);
   color: var(--ink);
 }
+
+/* ============================================================
+   Mobile foundations
+   ============================================================ */
+
+html {
+  /* Stop iOS/Android inflating text when the phone is rotated */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Safety net: nothing should ever scroll the whole page sideways.
+   `clip` rather than `hidden` on purpose -- `overflow: hidden` here would
+   create a scroll container and break the sticky navbar. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Long emails, Georgian titles and session IDs wrap instead of widening
+   their container */
+body {
+  overflow-wrap: break-word;
+}
+
+/* iOS Safari zooms the whole page when you focus a form control whose
+   font-size is under 16px. Every field in the app is text-xs or text-sm,
+   so raise the floor once here instead of on each of the 14 inputs. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Kill the 300ms tap delay and the grey flash on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  a,
+  button,
+  select,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

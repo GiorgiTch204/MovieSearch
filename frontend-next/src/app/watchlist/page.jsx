@@ -62,15 +62,17 @@ export default function WatchlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-0 text-ink flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-7xl flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-surface-0 text-ink flex flex-col items-center px-4 py-6 sm:py-8">
+      <div className="w-full max-w-7xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-ink bg-surface-1 border border-line px-3.5 py-2 rounded-xl transition hover:border-line"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted hover:text-ink bg-surface-1 border border-line px-3.5 py-2 rounded-xl transition hover:border-line"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Search
         </Link>
-        <h1 className="text-xl font-bold text-ink">Your Saved Watchlist</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-ink">
+          Your Saved Watchlist
+        </h1>
       </div>
 
       {loading ? (
@@ -78,9 +80,9 @@ export default function WatchlistPage() {
           <Loader2 className="w-6 h-6 animate-spin" /> Loading your movies...
         </div>
       ) : movies.length === 0 ? (
-        <div className="text-center text-slate-500 mt-20 flex flex-col items-center">
+        <div className="text-center text-ink-muted mt-20 flex flex-col items-center">
           <BookmarkX className="w-16 h-16 mb-4 stroke-[1.2]" />
-          <p className="text-slate-400 text-sm mb-3">
+          <p className="text-ink-muted text-sm mb-3">
             No movies saved to your watchlist yet.
           </p>
           <Link
@@ -91,7 +93,7 @@ export default function WatchlistPage() {
           </Link>
         </div>
       ) : (
-        <div className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+        <div className="w-full max-w-7xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
           {movies.map((movie) => (
             <div key={movie.id} className="relative group">
               <MovieCard

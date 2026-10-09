@@ -175,7 +175,7 @@ export default function SettingsPage() {
     Boolean(newPassword);
 
   return (
-    <div className="min-h-screen bg-surface-0 text-ink px-4 py-8">
+    <div className="min-h-screen bg-surface-0 text-ink px-4 py-6 sm:py-8">
       <div className="max-w-xl mx-auto">
         <Link
           href="/"
@@ -218,7 +218,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-5 mb-8 p-5 rounded-2xl bg-surface-1 border border-line">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-5 mb-8 p-4 sm:p-5 rounded-2xl bg-surface-1 border border-line">
           <div className="relative">
             <Avatar user={user} size={76} ring={user.is_pro} />
             {uploading && (
@@ -235,7 +235,7 @@ export default function SettingsPage() {
             <p className="text-xs text-ink-muted mb-3">
               JPEG, PNG or WebP. Cropped square and saved immediately.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-2">
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}

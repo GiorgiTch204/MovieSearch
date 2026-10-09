@@ -41,7 +41,7 @@ export function MovieCard({ movie, onClick }) {
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-4 text-center text-ink-muted">
-            <Film className="w-12 h-12 stroke-1 mb-2 text-slate-600" />
+            <Film className="w-12 h-12 stroke-1 mb-2 text-ink-muted" />
             <span className="text-xs font-medium text-ink-muted">
               პოსტერი არ არის
             </span>

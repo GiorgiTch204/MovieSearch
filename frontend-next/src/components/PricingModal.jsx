@@ -68,7 +68,7 @@ export function PricingModal({ isOpen, onClose, user }) {
         </p>
 
         <div className="flex items-baseline gap-2 mb-6">
-          <span className="text-4xl font-extrabold text-ink">$9.99</span>
+          <span className="text-3xl sm:text-4xl font-extrabold text-ink">$9.99</span>
           <span className="text-xs text-ink-muted font-medium">
             / lifetime access
           </span>

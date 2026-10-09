@@ -17,6 +17,10 @@ import {
   ChevronRight,
   Clock,
   Globe,
+  Trash2,
+  KeyRound,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 
@@ -44,6 +48,20 @@ async function apiGet(path) {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+async function apiSend(path, method, body) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload.detail || `Request failed (${res.status})`);
   }
   return res.json();
 }
@@ -89,8 +107,8 @@ function identityLabel(row) {
 /* small presentational pieces                                         */
 /* ------------------------------------------------------------------ */
 
-const StatCard = ({ icon: Icon, label, value, sub, tint }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-line bg-surface-1 p-5">
+const StatCard = ({ icon: Icon, label, value, sub = null, tint }) => (
+  <div className="relative overflow-hidden rounded-2xl border border-line bg-surface-1 p-4 sm:p-5">
     <div
       className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${tint} opacity-20 blur-xl`}
     />
@@ -99,7 +117,7 @@ const StatCard = ({ icon: Icon, label, value, sub, tint }) => (
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
           {label}
         </p>
-        <p className="mt-2 text-3xl font-bold tracking-tight text-ink">
+        <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-ink">
           {value}
         </p>
         {sub ? <p className="mt-1 text-xs text-ink-muted">{sub}</p> : null}
@@ -115,7 +133,7 @@ const StatCard = ({ icon: Icon, label, value, sub, tint }) => (
 
 const Panel = ({ title, subtitle = null, right = null, children }) => (
   <section className="rounded-2xl border border-line bg-surface-1 overflow-hidden">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5 sm:py-4">
       <div>
         <h2 className="text-sm font-bold text-ink">{title}</h2>
         {subtitle ? (
@@ -150,30 +168,39 @@ const Pill = ({ tone = "muted", children }) => {
 
 const ActivityChart = ({ daily }) => {
   const max = Math.max(1, ...daily.map((d) => Math.max(d.searches, d.signups)));
+  // 14 bars are unreadable on a phone -- hide all but the last 7 below sm
+  const hideBefore = Math.max(0, daily.length - 7);
   return (
-    <div className="px-5 py-5">
-      <div className="flex items-end gap-1.5 h-40">
-        {daily.map((d) => (
+    <div className="px-4 py-5 sm:px-5">
+      <div className="flex h-36 items-stretch gap-1 sm:h-44 sm:gap-1.5">
+        {daily.map((d, i) => (
           <div
             key={d.day}
-            className="group flex-1 flex flex-col items-center gap-1"
+            className={`group h-full flex-1 flex-col items-center gap-1 ${
+              i < hideBefore ? "hidden sm:flex" : "flex"
+            }`}
           >
-            <div className="relative flex w-full items-end justify-center gap-0.5 h-full">
+            {/* min-h-0 lets this flex child actually give up height, so the
+                percentage heights on the bars below have something to resolve
+                against */}
+            <div className="relative flex w-full min-h-0 flex-1 items-end justify-center gap-0.5">
               <div
                 className="w-1/2 rounded-t bg-gradient-to-t from-blue-600 to-indigo-500 transition-all"
-                style={{ height: `${(d.searches / max) * 100}%` }}
+                style={{ height: `${Math.max(2, (d.searches / max) * 100)}%` }}
                 title={`${d.searches} searches`}
               />
               <div
                 className="w-1/2 rounded-t bg-gradient-to-t from-emerald-600 to-teal-500 transition-all"
-                style={{ height: `${(d.signups / max) * 100}%` }}
+                style={{ height: `${Math.max(2, (d.signups / max) * 100)}%` }}
                 title={`${d.signups} signups`}
               />
-              <div className="pointer-events-none absolute -top-9 hidden whitespace-nowrap rounded-lg border border-line bg-surface-0 px-2 py-1 text-[10px] font-medium text-ink shadow-lg group-hover:block">
+              <div className="pointer-events-none absolute -top-9 z-10 hidden whitespace-nowrap rounded-lg border border-line bg-surface-0 px-2 py-1 text-[10px] font-medium text-ink shadow-lg group-hover:block">
                 {d.searches} searches · {d.signups} signups
               </div>
             </div>
-            <span className="text-[9px] text-ink-muted">{d.day.slice(8)}</span>
+            <span className="shrink-0 text-[9px] text-ink-muted sm:text-[10px]">
+              {d.day.slice(8)}
+            </span>
           </div>
         ))}
       </div>
@@ -195,7 +222,7 @@ const Pager = ({ offset, limit, total, onChange }) => {
   const page = Math.floor(offset / limit) + 1;
   const pages = Math.max(1, Math.ceil(total / limit));
   return (
-    <div className="flex items-center justify-between border-t border-line px-5 py-3">
+    <div className="flex items-center justify-between border-t border-line px-4 py-3 sm:px-5">
       <p className="text-xs text-ink-muted">
         {total === 0
           ? "No rows"
@@ -205,7 +232,7 @@ const Pager = ({ offset, limit, total, onChange }) => {
         <button
           onClick={() => onChange(Math.max(0, offset - limit))}
           disabled={page <= 1}
-          className="rounded-lg border border-line bg-surface-2 p-1.5 text-ink-muted transition hover:text-ink disabled:opacity-40"
+          className="rounded-lg border border-line bg-surface-2 p-2.5 text-ink-muted transition hover:text-ink disabled:opacity-40 sm:p-1.5"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -215,11 +242,276 @@ const Pager = ({ offset, limit, total, onChange }) => {
         <button
           onClick={() => onChange(offset + limit)}
           disabled={page >= pages}
-          className="rounded-lg border border-line bg-surface-2 p-1.5 text-ink-muted transition hover:text-ink disabled:opacity-40"
+          className="rounded-lg border border-line bg-surface-2 p-2.5 text-ink-muted transition hover:text-ink disabled:opacity-40 sm:p-1.5"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+};
+
+const Row = ({ label, children }) => (
+  <div className="flex items-start justify-between gap-4 border-b border-line py-2 last:border-0">
+    <span className="shrink-0 text-xs font-medium text-ink-muted">{label}</span>
+    <span className="min-w-0 break-all text-right text-xs text-ink">
+      {children}
+    </span>
+  </div>
+);
+
+const UserDrawer = ({ userId, onClose, onChanged }) => {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState("");
+  const [pw, setPw] = useState("");
+  const [pwDone, setPwDone] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setData(null);
+    setErr("");
+    setPw("");
+    setPwDone("");
+    setConfirmDelete(false);
+    apiGet(`/api/admin/users/${userId}`)
+      .then(setData)
+      .catch((e) => setErr(e.message));
+  }, [userId]);
+
+  const u = data?.user;
+
+  const doDelete = async () => {
+    setBusy("delete");
+    setErr("");
+    try {
+      await apiSend(`/api/admin/users/${userId}`, "DELETE");
+      onChanged();
+      onClose();
+    } catch (e) {
+      setErr(e.message);
+      setConfirmDelete(false);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const doReset = async () => {
+    setBusy("pw");
+    setErr("");
+    setPwDone("");
+    try {
+      await apiSend(`/api/admin/users/${userId}/reset-password`, "POST", {
+        new_password: pw,
+      });
+      setPwDone(pw);
+      setPw("");
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <aside className="relative flex h-full w-full flex-col overflow-y-auto border-line bg-surface-0 shadow-2xl sm:max-w-md sm:border-l">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface-0/95 px-4 py-4 backdrop-blur sm:px-5">
+          <h2 className="text-sm font-bold text-ink">Account details</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-ink-muted transition hover:bg-surface-2 hover:text-ink"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="space-y-6 px-4 py-5 sm:px-5">
+          {err ? (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-400">
+              {err}
+            </div>
+          ) : null}
+
+          {!data && !err ? (
+            <p className="text-sm text-ink-muted">Loading…</p>
+          ) : null}
+
+          {u ? (
+            <>
+              <div className="flex items-center gap-3">
+                <Avatar user={u} size={48} ring={u.is_pro} />
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-ink">
+                    {u.username || "(no username)"}
+                  </p>
+                  <p className="truncate text-xs text-ink-muted">{u.email}</p>
+                </div>
+              </div>
+
+              <section>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Stored fields
+                </h3>
+                <div className="rounded-xl border border-line bg-surface-1 px-4 py-2">
+                  <Row label="ID">#{u.id}</Row>
+                  <Row label="Username">{u.username || "—"}</Row>
+                  <Row label="Email">{u.email}</Row>
+                  <Row label="Registered">{fmtDateTime(u.created_at)}</Row>
+                  <Row label="Plan">{u.is_pro ? "Pro" : "Free"}</Row>
+                  <Row label="Admin">{u.is_admin ? "yes" : "no"}</Row>
+                  <Row label="Password">
+                    {u.has_password
+                      ? "set (bcrypt hash, not readable)"
+                      : "none"}
+                  </Row>
+                  <Row label="Avatar">
+                    {u.has_avatar
+                      ? `${u.avatar_mime || "image"}, ${Math.round(
+                          (u.avatar_bytes || 0) / 1024,
+                        )} KB`
+                      : "none"}
+                  </Row>
+                  <Row label="Stripe customer">
+                    {u.stripe_customer_id || "—"}
+                  </Row>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Watchlist ({data.watchlist.length})
+                </h3>
+                <div className="rounded-xl border border-line bg-surface-1 px-4 py-2">
+                  {data.watchlist.length ? (
+                    data.watchlist.map((m) => (
+                      <Row key={m.id} label={m.title}>
+                        {m.release_year || "—"}
+                      </Row>
+                    ))
+                  ) : (
+                    <p className="py-2 text-xs text-ink-muted">Empty.</p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Payments ({data.payments.length})
+                </h3>
+                <div className="rounded-xl border border-line bg-surface-1 px-4 py-2">
+                  {data.payments.length ? (
+                    data.payments.map((p) => (
+                      <Row key={p.id} label={fmtDateTime(p.created_at)}>
+                        {fmtMoney(p.amount)} · {p.status}
+                      </Row>
+                    ))
+                  ) : (
+                    <p className="py-2 text-xs text-ink-muted">None.</p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Recent searches ({data.searches.length})
+                </h3>
+                <div className="rounded-xl border border-line bg-surface-1 px-4 py-2">
+                  {data.searches.length ? (
+                    data.searches.map((s) => (
+                      <Row key={s.id} label={fmtDateTime(s.created_at)}>
+                        {s.query || "(not recorded)"}
+                      </Row>
+                    ))
+                  ) : (
+                    <p className="py-2 text-xs text-ink-muted">None.</p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  <KeyRound className="h-3 w-3" /> Set a new password
+                </h3>
+                <p className="mb-2 text-xs text-ink-muted">
+                  The current password cannot be shown — it is stored only as a
+                  one-way bcrypt hash. You can replace it here and tell the user
+                  the new one.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pw}
+                    onChange={(e) => setPw(e.target.value)}
+                    placeholder="at least 6 characters"
+                    className="flex-1 rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={doReset}
+                    disabled={pw.length < 6 || busy === "pw"}
+                    className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:opacity-40"
+                  >
+                    {busy === "pw" ? "Saving…" : "Set"}
+                  </button>
+                </div>
+                {pwDone ? (
+                  <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                    Password set to <strong>{pwDone}</strong> — copy it now, it
+                    will not be shown again.
+                  </p>
+                ) : null}
+              </section>
+
+              <section className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+                <h3 className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                  <AlertTriangle className="h-3 w-3" /> Delete account
+                </h3>
+                <p className="mb-3 text-xs text-ink-muted">
+                  Removes the account, its avatar, its watchlist and its search
+                  history. Payment records are kept but detached from the user.
+                  This cannot be undone.
+                </p>
+                {u.is_admin ? (
+                  <p className="text-xs text-ink-muted">
+                    This account is an admin. Revoke admin from a terminal
+                    first.
+                  </p>
+                ) : confirmDelete ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={doDelete}
+                      disabled={busy === "delete"}
+                      className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-50"
+                    >
+                      {busy === "delete"
+                        ? "Deleting…"
+                        : `Yes, delete ${u.username || u.email}`}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="rounded-xl border border-line bg-surface-1 px-3 py-2 text-xs font-semibold text-ink-muted transition hover:text-ink"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/10 dark:text-rose-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete this account
+                  </button>
+                )}
+              </section>
+            </>
+          ) : null}
+        </div>
+      </aside>
     </div>
   );
 };
@@ -246,6 +538,7 @@ export default function AdminPage() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [openUser, setOpenUser] = useState(null);
 
   /* --- who am I ------------------------------------------------- */
   useEffect(() => {
@@ -451,7 +744,7 @@ export default function AdminPage() {
     <main className="min-h-screen bg-surface-0">
       {/* Header */}
       <div className="border-b border-line bg-gradient-to-br from-blue-600/10 via-indigo-600/5 to-transparent">
-        <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted transition hover:text-ink"
@@ -464,7 +757,7 @@ export default function AdminPage() {
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-ink">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
                   Admin dashboard
                 </h1>
                 <p className="mt-0.5 text-sm text-ink-muted">
@@ -486,7 +779,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8">
+      <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:space-y-6 sm:py-8">
         {error ? (
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">
             {error}
@@ -495,13 +788,13 @@ export default function AdminPage() {
 
         {/* Stat tiles */}
         {stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {tiles.map((t) => (
               <StatCard key={t.label} {...t} />
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
@@ -531,8 +824,8 @@ export default function AdminPage() {
           )}
         </Panel>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
+        {/* Tabs -- one scrollable row on phones rather than a wrapped block */}
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
             { id: "users", label: "Users", icon: Users },
             { id: "payments", label: "Payments", icon: CreditCard },
@@ -541,7 +834,7 @@ export default function AdminPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition ${
                 tab === t.id
                   ? "border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
                   : "border-line bg-surface-1 text-ink-muted hover:text-ink"
@@ -558,12 +851,12 @@ export default function AdminPage() {
             title="Registered users"
             subtitle="Everyone who has created an account"
             right={
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search name or email…"
-                  className="w-48 rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-xl border border-line bg-surface-0 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted focus:border-blue-500 focus:outline-none sm:w-48 sm:flex-none"
                 />
                 <select
                   value={plan}
@@ -577,7 +870,7 @@ export default function AdminPage() {
               </div>
             }
           >
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-surface-2 text-[11px] uppercase tracking-wider text-ink-muted">
                   <tr>
@@ -648,17 +941,25 @@ export default function AdminPage() {
                           : "—"}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => togglePro(u)}
-                          disabled={busyId === u.id}
-                          className="rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition hover:text-ink disabled:opacity-50"
-                        >
-                          {busyId === u.id
-                            ? "Saving…"
-                            : u.is_pro
-                              ? "Revoke Pro"
-                              : "Grant Pro"}
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => togglePro(u)}
+                            disabled={busyId === u.id}
+                            className="rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition hover:text-ink disabled:opacity-50"
+                          >
+                            {busyId === u.id
+                              ? "Saving…"
+                              : u.is_pro
+                                ? "Revoke Pro"
+                                : "Grant Pro"}
+                          </button>
+                          <button
+                            onClick={() => setOpenUser(u.id)}
+                            className="rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition hover:text-ink"
+                          >
+                            Details
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -675,6 +976,81 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            {/* Below lg: one card per user. The 8-column table needs ~850px,
+                so it only appears once there is room for it. */}
+            <ul className="divide-y divide-[color:var(--line)] lg:hidden">
+              {users.users.map((u) => (
+                <li key={u.id} className="px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar user={u} size={40} ring={u.is_pro} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="truncate font-semibold text-ink">
+                          {u.username || "—"}
+                        </p>
+                        {u.is_admin ? <Pill tone="admin">admin</Pill> : null}
+                        {u.is_pro ? (
+                          <Pill tone="pro">
+                            <Crown className="h-3 w-3" /> Pro
+                          </Pill>
+                        ) : (
+                          <Pill>Free</Pill>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-ink-muted">
+                        {u.email}
+                      </p>
+                      <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-ink-muted">Joined</dt>
+                          <dd className="text-ink">{fmtDate(u.created_at)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-ink-muted">Searches</dt>
+                          <dd className="text-ink">{u.search_count}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-ink-muted">Watchlist</dt>
+                          <dd className="text-ink">{u.watchlist_count}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-ink-muted">Paid</dt>
+                          <dd className="text-ink">
+                            {Number(u.paid_cents) > 0
+                              ? fmtMoney(u.paid_cents)
+                              : "—"}
+                          </dd>
+                        </div>
+                      </dl>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => togglePro(u)}
+                          disabled={busyId === u.id}
+                          className="flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[11px] font-semibold text-ink-muted transition hover:text-ink disabled:opacity-50"
+                        >
+                          {busyId === u.id
+                            ? "Saving…"
+                            : u.is_pro
+                              ? "Revoke Pro"
+                              : "Grant Pro"}
+                        </button>
+                        <button
+                          onClick={() => setOpenUser(u.id)}
+                          className="flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[11px] font-semibold text-ink-muted transition hover:text-ink"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+              {users.users.length === 0 ? (
+                <li className="px-4 py-10 text-center text-sm text-ink-muted">
+                  No users match that filter.
+                </li>
+              ) : null}
+            </ul>
             <Pager
               offset={userOffset}
               limit={PAGE_SIZE}
@@ -690,7 +1066,7 @@ export default function AdminPage() {
             title="Payments"
             subtitle="Every Stripe checkout recorded by the webhook"
           >
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-surface-2 text-[11px] uppercase tracking-wider text-ink-muted">
                   <tr>
@@ -751,6 +1127,38 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            {/* Mobile: one card per payment */}
+            <ul className="divide-y divide-[color:var(--line)] lg:hidden">
+              {payments.payments.map((p) => (
+                <li key={p.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">
+                        {p.username || p.email || `user #${p.user_id ?? "?"}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {fmtDateTime(p.created_at)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-semibold text-ink">
+                        {fmtMoney(p.amount)}
+                      </p>
+                      <div className="mt-1">
+                        <Pill tone={p.status === "paid" ? "paid" : "fail"}>
+                          {p.status || "unknown"}
+                        </Pill>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+              {payments.payments.length === 0 ? (
+                <li className="px-4 py-10 text-center text-sm text-ink-muted">
+                  No payments recorded yet.
+                </li>
+              ) : null}
+            </ul>
             <Pager
               offset={payOffset}
               limit={PAGE_SIZE}
@@ -762,7 +1170,7 @@ export default function AdminPage() {
 
         {/* Searches */}
         {tab === "searches" ? (
-          <div className="grid gap-6 lg:grid-cols-5">
+          <div className="grid gap-5 sm:gap-6 lg:grid-cols-5">
             <div className="lg:col-span-3">
               <Panel
                 title="Recent searches"
@@ -772,7 +1180,7 @@ export default function AdminPage() {
                   {searches.recent.map((s) => (
                     <li
                       key={s.id}
-                      className="flex items-start justify-between gap-4 px-5 py-3"
+                      className="flex items-start justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5"
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium text-ink">
@@ -840,6 +1248,17 @@ export default function AdminPage() {
           </div>
         ) : null}
       </div>
+
+      {openUser !== null ? (
+        <UserDrawer
+          userId={openUser}
+          onClose={() => setOpenUser(null)}
+          onChanged={() => {
+            loadUsers().catch((e) => setError(e.message));
+            loadOverview().catch((e) => setError(e.message));
+          }}
+        />
+      ) : null}
     </main>
   );
 }

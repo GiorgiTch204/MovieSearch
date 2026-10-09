@@ -52,7 +52,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("catalog", e.target.value || null, setCatalog)
             }
-            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ყველა კატალოგი (All)</option>
             <option value="geocinema">ქართული კინოკლასიკა (Geocinema)</option>
@@ -70,7 +70,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("genre", e.target.value || null, setSelectedGenre)
             }
-            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ყველა ჟანრი (All)</option>
             <option value="კომედია">კომედია</option>
@@ -95,7 +95,7 @@ export function FilterBar({
             onChange={(e) =>
               handleUpdate("era", e.target.value || null, setEra)
             }
-            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ნებისმიერი პერიოდი (Any)</option>
             <option value="before_1990">1990 წლამდე (Before 1990)</option>
@@ -119,7 +119,7 @@ export function FilterBar({
                 setMinRating,
               )
             }
-            className="bg-surface-0 border border-line text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+            className="bg-surface-0 border border-line text-ink text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             <option value="">ნებისმიერი (Any)</option>
             <option value="6">★ 6.0+</option>

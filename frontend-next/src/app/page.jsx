@@ -183,7 +183,7 @@ export default function Home() {
         onLogout={() => setUser(null)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-8">
         {/* Search Input */}
         <div className="max-w-3xl mx-auto mb-6 space-y-4">
           <div className="relative flex items-center">
@@ -194,17 +194,21 @@ export default function Home() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && fetchMovies()}
               placeholder="Search by title, director, actor, or plot (e.g., დათა თუთაშხია, Inception)..."
-              className="w-full bg-surface-1 border border-line rounded-2xl py-3.5 pl-12 pr-28 text-ink placeholder-slate-500 focus:outline-none focus:border-blue-500 transition shadow-lg"
+              className="w-full bg-surface-1 border border-line rounded-2xl py-3.5 pl-11 sm:pl-12 pr-[4.5rem] sm:pr-28 text-ink placeholder:text-ink-muted focus:outline-none focus:border-blue-500 transition shadow-lg"
             />
             <button
               onClick={fetchMovies}
               disabled={loading}
-              className="absolute right-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-2 text-ink text-sm font-semibold rounded-xl transition flex items-center gap-2"
+              aria-label="Search"
+              className="absolute right-2 px-3 sm:px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-2 disabled:text-ink-muted text-white text-sm font-semibold rounded-xl transition flex items-center gap-2"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Search"
+                <>
+                  <Search className="w-4 h-4 sm:hidden" />
+                  <span className="hidden sm:inline">Search</span>
+                </>
               )}
             </button>
           </div>
@@ -246,7 +250,7 @@ export default function Home() {
                 movies matching your query:
               </h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {results.map((movie) => (
                 <MovieCard
                   key={movie.source_id || movie.id}
@@ -258,7 +262,7 @@ export default function Home() {
           </div>
         ) : query ? (
           <div className="text-center py-20 text-ink-muted">
-            <Film className="w-12 h-12 stroke-1 mx-auto mb-3 text-slate-600" />
+            <Film className="w-12 h-12 stroke-1 mx-auto mb-3 text-ink-muted" />
             <p className="text-base font-medium text-ink-muted">
               No movies found
             </p>

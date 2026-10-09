@@ -1174,3 +1174,165 @@ def admin_searches(
         top = cur.fetchall()
 
     return {"recent": recent, "top": top}
+
+
+
+@app.get("/api/admin/users/{user_id}")
+def admin_user_detail(
+    user_id: int,
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    """Everything stored about one account. Deliberately excludes
+    hashed_password -- it is a one-way bcrypt hash, useless to read and a
+    liability to expose."""
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT u.id, u.username, u.email,
+                   coalesce(u.is_pro,   FALSE) AS is_pro,
+                   coalesce(u.is_admin, FALSE) AS is_admin,
+                   u.created_at,
+                   u.stripe_customer_id,
+                   (u.hashed_password IS NOT NULL) AS has_password,
+                   (u.avatar IS NOT NULL)          AS has_avatar,
+                   u.avatar_mime,
+                   u.avatar_updated_at,
+                   octet_length(u.avatar)          AS avatar_bytes
+            FROM users u
+            WHERE u.id = %s;
+            """,
+            (user_id,),
+        )
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        cur.execute(
+            """
+            SELECT m.id, coalesce(m.title_ka, m.title) AS title,
+                   m.release_year, w.added_at
+            FROM watchlist w
+            JOIN movies m ON m.id = w.movie_id
+            WHERE w.user_id = %s
+            ORDER BY w.added_at DESC
+            LIMIT 50;
+            """,
+            (user_id,),
+        )
+        watchlist = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT id, amount, currency, status, stripe_session_id, created_at
+            FROM payments
+            WHERE user_id = %s
+            ORDER BY created_at DESC NULLS LAST, id DESC;
+            """,
+            (user_id,),
+        )
+        payments = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT id, query, catalog, created_at
+            FROM search_log
+            WHERE identity = %s
+            ORDER BY created_at DESC, id DESC
+            LIMIT 50;
+            """,
+            (f"user:{user_id}",),
+        )
+        searches = cur.fetchall()
+
+    return {
+        "user": user,
+        "watchlist": watchlist,
+        "payments": payments,
+        "searches": searches,
+    }
+
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(
+    user_id: int,
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    """Permanently delete an account.
+
+    watchlist rows cascade (ON DELETE CASCADE). payments rows survive with
+    user_id set to NULL (ON DELETE SET NULL) so revenue history stays intact.
+    search_log has no foreign key, so its rows are cleared by identity.
+    """
+    if user_id == admin["id"]:
+        raise HTTPException(
+            status_code=400, detail="You cannot delete the account you are signed in as"
+        )
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, username, email, coalesce(is_admin, FALSE) AS is_admin "
+            "FROM users WHERE id = %s;",
+            (user_id,),
+        )
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target["is_admin"]:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "That account is an admin. Revoke it first from a terminal "
+                    "(python backend/make_admin.py <email> --revoke), then delete."
+                ),
+            )
+
+        cur.execute(
+            "DELETE FROM search_log WHERE identity = %s;", (f"user:{user_id}",)
+        )
+        searches_removed = cur.rowcount
+        cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+        conn.commit()
+
+    return {
+        "status": "deleted",
+        "id": target["id"],
+        "username": target["username"],
+        "email": target["email"],
+        "searches_removed": searches_removed,
+    }
+
+
+class AdminPasswordReset(BaseModel):
+    new_password: str
+
+
+@app.post("/api/admin/users/{user_id}/reset-password")
+def admin_reset_password(
+    user_id: int,
+    payload: AdminPasswordReset,
+    _admin: Dict[str, Any] = Depends(get_admin_user),
+    conn=Depends(get_db),
+):
+    """Set a new password for an account. The old one is NOT recoverable --
+    it was only ever stored as a bcrypt hash."""
+    if len(payload.new_password) < 6:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 6 characters"
+        )
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            UPDATE users SET hashed_password = %s WHERE id = %s
+            RETURNING id, username, email;
+            """,
+            (get_password_hash(payload.new_password), user_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.commit()
+
+    return {"status": "password_set", **row}

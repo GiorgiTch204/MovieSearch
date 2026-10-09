@@ -80,8 +80,8 @@ export function MovieModal({
   const genres = details?.genres || (movie.genre ? movie.genre.split(",") : []);
 
   return (
-    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-surface-1 border border-line rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-surface-1 border-line sm:border rounded-none sm:rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl relative flex flex-col h-full sm:h-auto max-h-none sm:max-h-[92dvh]">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -132,7 +132,7 @@ export function MovieModal({
         )}
 
         {/* Scrollable Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6">
           {/* Main Info Block */}
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             {/* Poster Card (Always visible with Georgian fallback design) */}
@@ -163,7 +163,7 @@ export function MovieModal({
             <div className="flex-1 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-ink leading-tight">
+                  <h2 className="text-xl sm:text-2xl font-bold text-ink leading-tight">
                     {title}
                   </h2>
                   {movie.director && (
@@ -258,7 +258,7 @@ export function MovieModal({
               {isGeorgian ? "მსგავსი ფილმები" : "AI Similar Recommendations"}
             </h4>
             {Array.isArray(similar) && similar.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 sm:gap-3">
                 {similar.map((s, idx) => {
                   const sPoster = s.poster_url || s.poster_path;
                   return (
