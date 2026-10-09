@@ -1428,6 +1428,7 @@ def admin_set_role(
     return row
 
 
+
 @app.get("/api/admin/audit")
 def admin_audit_log(
     limit: int = Query(60, ge=1, le=300),
@@ -1447,3 +1448,62 @@ def admin_audit_log(
         )
         rows = cur.fetchall()
     return {"entries": rows}
+
+class CheckoutConfirm(BaseModel):
+    session_id: str
+
+
+@app.post("/api/checkout/confirm")
+def confirm_checkout(
+    payload: CheckoutConfirm,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    secret_key = os.getenv("STRIPE_SECRET_KEY")
+    if not secret_key or not secret_key.startswith("sk_"):
+        raise HTTPException(status_code=500, detail="Stripe secret key not configured")
+    stripe.api_key = secret_key
+
+    try:
+        session = stripe.checkout.Session.retrieve(payload.session_id)
+    except Exception as e:
+        print(f"[confirm] could not retrieve session {payload.session_id}: {e}")
+        raise HTTPException(status_code=400, detail="Unknown checkout session")
+
+    # The session must belong to the caller. Without this check anyone could
+    # paste somebody else's session id and upgrade their own account.
+    owner = (session.get("metadata") or {}).get("user_id")
+    if str(owner) != str(current_user["id"]):
+        raise HTTPException(
+            status_code=403, detail="That checkout session belongs to another account"
+        )
+
+    if session.get("payment_status") != "paid":
+        return {
+            "status": session.get("payment_status") or "unpaid",
+            "is_pro": bool(current_user.get("is_pro")),
+        }
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET is_pro = TRUE WHERE id = %s;", (current_user["id"],)
+        )
+        cur.execute(
+            """
+            INSERT INTO payments
+                (user_id, stripe_session_id, amount, currency, status)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (stripe_session_id) DO NOTHING;
+            """,
+            (
+                current_user["id"],
+                session.get("id"),
+                session.get("amount_total"),
+                session.get("currency"),
+                session.get("payment_status"),
+            ),
+        )
+        conn.commit()
+
+    print(f"[confirm] user {current_user['id']} upgraded to Pro")
+    return {"status": "paid", "is_pro": True}

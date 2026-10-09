@@ -36,6 +36,7 @@ export default function Home() {
   const [watchlistIds, setWatchlistIds] = useState([]);
   const [quota, setQuota] = useState(null);
   const [quotaMessage, setQuotaMessage] = useState("");
+  const [upgrading, setUpgrading] = useState(false);
 
   // Restore the session from the stored token on first load
   useEffect(() => {
@@ -147,31 +148,55 @@ export default function Home() {
     }
   }, [query, filters, fetchMovies]);
 
+  // Returning from Stripe. Rather than polling and hoping the webhook has
+  // landed, hand the session id back to our API, which asks Stripe directly
+  // whether it was paid. The webhook remains the backstop for people who
+  // close the tab before being redirected here.
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("payment") !== "success") return;
 
+    const sessionId = url.searchParams.get("session_id");
     const token = localStorage.getItem("auth_token");
-    let attempts = 0;
-
-    const poll = () => {
-      attempts += 1;
-      fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((u) => {
-          if (u) setUser(u);
-          if (u && !u.is_pro && attempts < 4) setTimeout(poll, 3000);
-        })
-        .catch(() => {});
-    };
-
-    if (token) poll();
 
     url.searchParams.delete("payment");
     url.searchParams.delete("session_id");
     window.history.replaceState({}, "", url.toString());
+
+    if (!token) return;
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const refreshUser = () =>
+      fetch(`${API_BASE}/api/auth/me`, { headers: auth })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((u) => {
+          if (u) setUser(u);
+          return u;
+        })
+        .catch(() => null);
+
+    if (sessionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUpgrading(true);
+      fetch(`${API_BASE}/api/checkout/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+        .catch(() => null)
+        .then(() => refreshUser())
+        .finally(() => setUpgrading(false));
+      return;
+    }
+
+    // No session id in the URL -- fall back to the old poll.
+    let attempts = 0;
+    const poll = () =>
+      refreshUser().then((u) => {
+        attempts += 1;
+        if (u && !u.is_pro && attempts < 4) setTimeout(poll, 3000);
+      });
+    poll();
   }, []);
 
   return (
@@ -216,6 +241,13 @@ export default function Home() {
           {/* Filter Bar */}
           <FilterBar filters={filters} setFilters={setFilters} />
         </div>
+
+        {upgrading && (
+          <div className="max-w-3xl mx-auto mb-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm text-blue-500 flex items-center gap-3">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            <span>Confirming your payment with Stripe…</span>
+          </div>
+        )}
 
         {quotaMessage && (
           <div className="max-w-3xl mx-auto mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-500 flex items-center justify-between gap-3">
