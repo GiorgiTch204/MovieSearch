@@ -1550,3 +1550,98 @@ def confirm_checkout(
 
     print(f"[confirm] user {current_user['id']} upgraded to Pro")
     return {"status": "paid", "is_pro": True}
+
+
+
+# ----------------- CATALOGUE BROWSING -----------------
+BROWSE_COLUMNS = """
+    id, source_id, catalog_source, title, title_ka, release_year,
+    release_date, vote_average, genre, overview, director,
+    cast_members, studio, poster_url
+"""
+
+BROWSE_ORDER = {
+    "newest": "release_year DESC NULLS LAST, id DESC",
+    "oldest": "release_year ASC NULLS LAST, id ASC",
+    "rating": "vote_average DESC NULLS LAST, id DESC",
+    "title": "coalesce(title_ka, title) ASC NULLS LAST",
+    "posters": "(poster_url IS NOT NULL AND poster_url NOT ILIKE '%%nophoto%%') DESC, "
+               "release_year DESC NULLS LAST, id DESC",
+}
+
+
+@app.get("/api/movies")
+def browse_movies(
+    catalog: Optional[str] = Query(None),
+    genre: Optional[str] = Query(None),
+    sort: str = Query("posters"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(24, ge=1, le=60),
+    conn=Depends(get_db),
+):
+    """Plain catalogue browsing: filter, sort, paginate.
+
+    Deliberately does NOT call consume_quota. Paging through the catalogue is
+    not a semantic search -- it runs no embedding and costs nothing to answer,
+    so it must not eat anybody's free search allowance.
+
+    Columns are listed explicitly rather than SELECT *: the movies table holds
+    a 384-dimension embedding and a tsvector per row, and shipping those for
+    24 rows a page would be megabytes of pure waste.
+
+    The tab counts come back with every page rather than from their own route,
+    because /api/movies/counts would be captured by the /api/movies/{movie_id}
+    route registered above it and 422 on the int parse.
+    """
+    order = BROWSE_ORDER.get(sort, BROWSE_ORDER["posters"])
+
+    where, params = [], {}
+    if catalog in ("geocinema", "tmdb"):
+        where.append("catalog_source = %(catalog)s")
+        params["catalog"] = catalog
+    if genre and genre.strip():
+        where.append("genre ILIKE %(genre)s")
+        params["genre"] = f"%{genre.strip()}%"
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+              count(*)                                             AS all_movies,
+              count(*) FILTER (WHERE catalog_source = 'geocinema') AS geocinema,
+              count(*) FILTER (WHERE catalog_source IS DISTINCT FROM 'geocinema')
+                                                                   AS tmdb
+            FROM movies;
+            """
+        )
+        counts = cur.fetchone()
+
+        cur.execute(f"SELECT count(*) AS n FROM movies {clause};", params)
+        total = cur.fetchone()["n"]
+
+        pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, pages)  # asking for page 900 of 50 returns the last one
+
+        params["lim"] = per_page
+        params["off"] = (page - 1) * per_page
+        cur.execute(
+            f"""
+            SELECT {BROWSE_COLUMNS}
+            FROM movies
+            {clause}
+            ORDER BY {order}
+            LIMIT %(lim)s OFFSET %(off)s;
+            """,
+            params,
+        )
+        rows = cur.fetchall()
+
+    return {
+        "results": [format_movie_item(r, 0.8) for r in rows],
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "per_page": per_page,
+        "counts": counts,
+    }

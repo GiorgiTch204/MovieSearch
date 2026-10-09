@@ -1,4 +1,5 @@
 import time
+
 import httpx
 import psycopg2
 from psycopg2.extras import execute_batch
@@ -6,55 +7,102 @@ from tqdm import tqdm
 
 from db_config import get_db_url, get_tmdb_key
 
-DATABASE_URL = get_db_url()
-TMDB_API_KEY = get_tmdb_key()
+BATCH = 50
+DELAY = 0.04  # ~25 req/s, inside TMDb's limit
+
 
 def backfill():
-    conn = psycopg2.connect(DATABASE_URL)
-    cur = conn.cursor()
-
-    # Get all movies that don't have a poster yet
-    cur.execute("SELECT tmdb_id FROM movies WHERE poster_path IS NULL;")
-    movie_ids = [row[0] for row in cur.fetchall()]
-    print(f"Found {len(movie_ids)} movies needing posters.")
-
-    if not movie_ids:
-        print("All movies already have posters!")
+    api_key = get_tmdb_key()
+    if not api_key:
+        print("TMDB_API_KEY is not set in .env")
         return
 
-    update_query = "UPDATE movies SET poster_path = %s, backdrop_path = %s WHERE tmdb_id = %s;"
-    batch = []
-    
-    with httpx.Client(timeout=6.0) as client:
-        for tmdb_id in tqdm(movie_ids, desc="Fetching posters from TMDB"):
-            try:
-                url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
-                resp = client.get(url, params={"api_key": TMDB_API_KEY})
-                if resp.status_code == 200:
-                    data = resp.json()
-                    poster = data.get("poster_path")
-                    backdrop = data.get("backdrop_path")
-                    if poster or backdrop:
-                        batch.append((poster, backdrop, tmdb_id))
-            except Exception:
-                pass
+    conn = psycopg2.connect(get_db_url())
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT count(*) FILTER (WHERE poster_url IS NULL),
+                       count(*)
+                FROM movies
+                WHERE catalog_source = 'tmdb';
+                """
+            )
+            missing, total = cur.fetchone()
+            print(f"TMDb rows: {total},  missing a poster: {missing}")
 
-            # Write in batches of 50
-            if len(batch) >= 50:
-                execute_batch(cur, update_query, batch)
-                conn.commit()
-                batch = []
+            cur.execute(
+                """
+                SELECT id, source_id
+                FROM movies
+                WHERE catalog_source = 'tmdb'
+                  AND source_id IS NOT NULL
+                  AND poster_url IS NULL
+                ORDER BY id;
+                """
+            )
+            rows = cur.fetchall()
 
-            time.sleep(0.04)  # Stay safely within TMDB rate limits (approx 25-30 req/sec)
+        if not rows:
+            print("Nothing to do.")
+            return
 
-        # Remaining batch
+        print(f"Fetching {len(rows)} from TMDb (~{len(rows) * DELAY / 60:.0f} min)...")
+
+        update_sql = """
+            UPDATE movies
+            SET poster_url    = COALESCE(%s, poster_url),
+                backdrop_path = COALESCE(%s, backdrop_path)
+            WHERE id = %s;
+        """
+
+        batch, written, not_found = [], 0, 0
+        with httpx.Client(timeout=8.0) as client:
+            for movie_id, source_id in tqdm(rows, desc="posters"):
+                try:
+                    resp = client.get(
+                        f"https://api.themoviedb.org/3/movie/{source_id}",
+                        params={"api_key": api_key},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        poster = data.get("poster_path")
+                        backdrop = data.get("backdrop_path")
+                        if poster or backdrop:
+                            batch.append((poster, backdrop, movie_id))
+                    elif resp.status_code == 404:
+                        not_found += 1
+                except Exception:
+                    pass
+
+                if len(batch) >= BATCH:
+                    with conn.cursor() as cur:
+                        execute_batch(cur, update_sql, batch)
+                    conn.commit()
+                    written += len(batch)
+                    batch = []
+
+                time.sleep(DELAY)
+
         if batch:
-            execute_batch(cur, update_query, batch)
+            with conn.cursor() as cur:
+                execute_batch(cur, update_sql, batch)
             conn.commit()
+            written += len(batch)
 
-    cur.close()
-    conn.close()
-    print("\nBackfill complete! All posters are now permanently saved in Neon.")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) FROM movies "
+                "WHERE catalog_source = 'tmdb' AND poster_url IS NULL;"
+            )
+            still_missing = cur.fetchone()[0]
+
+        print(f"\nrows updated:           {written}")
+        print(f"not found on TMDb:      {not_found}")
+        print(f"TMDb rows still absent: {still_missing}")
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
     backfill()

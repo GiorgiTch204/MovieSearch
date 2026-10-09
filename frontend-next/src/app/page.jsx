@@ -8,6 +8,7 @@ import MovieCard from "@/components/MovieCard";
 import { MovieModal } from "@/components/MovieModal";
 import FilterBar from "@/components/FilterBar";
 import { PricingModal } from "@/components/PricingModal";
+import Link from "next/link";
 
 // const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const API_BASE = (
@@ -243,6 +244,14 @@ export default function Home() {
 
           {/* Filter Bar */}
           <FilterBar filters={filters} setFilters={setFilters} />
+
+          <Link
+            href="/movies"
+            className="flex items-center justify-center gap-2 w-full rounded-2xl border border-line bg-surface-1 px-4 py-3 text-sm font-semibold text-ink-muted hover:text-ink hover:bg-surface-2 transition"
+          >
+            <Film className="w-4 h-4" />
+            Browse all movies in the catalogue
+          </Link>
         </div>
 
         {upgrading && (
