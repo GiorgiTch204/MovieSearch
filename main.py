@@ -537,7 +537,7 @@ def remove_from_watchlist(
 @app.post("/api/checkout/create-session")
 def create_checkout_session(current_user: Dict[str, Any] = Depends(get_current_user)):
     secret_key = os.getenv("STRIPE_SECRET_KEY")
-    if not secret_key or "your_secret_key" in secret_key:
+    if not secret_key or not secret_key.startswith("sk_"):
         print("[Stripe Error] STRIPE_SECRET_KEY is missing or contains placeholder text in .env")
         raise HTTPException(
             status_code=500,
