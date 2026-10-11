@@ -116,7 +116,6 @@ export default function Home() {
       if (filters.mediaType) params.append("media_type", filters.mediaType);
       if (filters.searchIn) params.append("search_in", filters.searchIn);
       const token = localStorage.getItem("auth_token");
-      console.log("Current API_BASE:", API_BASE);
       const res = await fetch(
         `${API_BASE}/api/movies/search?${params.toString()}`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
