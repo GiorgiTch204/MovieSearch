@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "MovieSearch Pro",
   webDir: "out",
   server: {
-    androidScheme: "https",
+    url: "https://movie-search-omega-opal.vercel.app",
     cleartext: true,
   },
 };
