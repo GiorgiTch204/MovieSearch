@@ -9,11 +9,7 @@ import { MovieModal } from "@/components/MovieModal";
 import FilterBar from "@/components/FilterBar";
 import { PricingModal } from "@/components/PricingModal";
 import Link from "next/link";
-
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "https://moviesearch-kreh.onrender.com"
-).replace(/\/$/, "");
+import { API_BASE } from "@/lib/api";
 
 export default function Home() {
   const [query, setQuery] = useState("");

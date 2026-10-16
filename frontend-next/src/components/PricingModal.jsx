@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Sparkles, X, Loader2, ShieldCheck } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, Sparkles, X, ShieldCheck } from "lucide-react";
+import { API_BASE } from "@/lib/api";
+import { ColdStartNotice } from "@/components/ColdStartNotice";
+
+// Same cold-start threshold as AuthModal: how long before a slow request
+// is treated as the free-tier API/DB waking up rather than normal latency.
+const COLD_START_THRESHOLD_MS = 1200;
 
 export function PricingModal({ isOpen, onClose, user }) {
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
+  const wakeTimerRef = useRef(null);
 
   if (!isOpen) return null;
 
@@ -18,12 +26,14 @@ export function PricingModal({ isOpen, onClose, user }) {
     }
 
     setLoading(true);
-    try {
-      const apiUrl = (
-        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      ).replace(/\/$/, "");
+    setWakingUp(false);
+    wakeTimerRef.current = setTimeout(
+      () => setWakingUp(true),
+      COLD_START_THRESHOLD_MS,
+    );
 
-      const res = await fetch(`${apiUrl}/api/checkout/create-session`, {
+    try {
+      const res = await fetch(`${API_BASE}/api/checkout/create-session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,6 +51,8 @@ export function PricingModal({ isOpen, onClose, user }) {
       console.error(err);
       alert("Error contacting checkout server");
     } finally {
+      clearTimeout(wakeTimerRef.current);
+      setWakingUp(false);
       setLoading(false);
     }
   };
@@ -91,13 +103,17 @@ export function PricingModal({ isOpen, onClose, user }) {
           </li>
         </ul>
 
+        {wakingUp && <ColdStartNotice className="mb-4" />}
+
         <button
           onClick={handleCheckout}
           disabled={loading}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-ink font-semibold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-ink font-semibold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-80 disabled:cursor-wait"
         >
           {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="animate-pulse">
+              {wakingUp ? "Still waking up…" : "Contacting Stripe…"}
+            </span>
           ) : (
             <>
               <ShieldCheck className="w-4 h-4" /> Pay with Stripe

@@ -5,15 +5,14 @@ import Link from "next/link";
 import { ArrowLeft, BookmarkX, Loader2, X } from "lucide-react";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieModal } from "@/components/MovieModal";
+import { API_BASE } from "@/lib/api";
 
 export default function WatchlistPage() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState(null);
 
-  const apiUrl = (
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-  ).replace(/\/$/, "");
+  const apiUrl = API_BASE;
 
   const loadWatchlist = async () => {
     setLoading(true);

@@ -1,8 +1,6 @@
 "use client";
 
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+import { API_BASE } from "@/lib/api";
 
 // Deterministic hue from the user id, so initials get a stable colour
 function hueFor(id) {

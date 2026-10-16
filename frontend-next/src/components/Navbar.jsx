@@ -14,6 +14,7 @@ import {
 import { AuthModal } from "@/components/AuthModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar } from "@/components/Avatar";
+import { API_BASE } from "@/lib/api";
 
 export const Navbar = ({
   user: propUser,
@@ -28,9 +29,7 @@ export const Navbar = ({
   // Use either the user passed from page.jsx or the internally fetched user
   const currentUser = propUser !== undefined ? propUser : internalUser;
 
-  const apiUrl = (
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-  ).replace(/\/$/, "");
+  const apiUrl = API_BASE;
 
   // Restore session on mount
   useEffect(() => {

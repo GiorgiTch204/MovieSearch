@@ -22,9 +22,7 @@ def send_notification(subject: str, body: str, html: str | None = None) -> bool:
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_addr
-    msg.set_content(body)       
-    if html:
-        msg.add_alternative(html, subtype="html")
+    msg.set_content(body)
     if html:
         msg.add_alternative(html, subtype="html")
 

@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
-
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+import { API_BASE } from "@/lib/api";
 
 const SEARCH_IN = [
   { value: "", label: "ყველაფერში / Everything" },

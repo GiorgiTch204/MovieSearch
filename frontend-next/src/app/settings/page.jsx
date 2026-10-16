@@ -11,10 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
-
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+import { API_BASE } from "@/lib/api";
 
 // Centre-crop to a square and shrink before upload, so a 4MB phone photo
 // becomes ~30KB and the server never sees the original.

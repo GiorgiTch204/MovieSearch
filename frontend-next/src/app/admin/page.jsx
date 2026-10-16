@@ -25,10 +25,7 @@ import {
   UserCog,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
-
-const API = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+import { API_BASE as API } from "@/lib/api";
 
 const PAGE_SIZE = 20;
 

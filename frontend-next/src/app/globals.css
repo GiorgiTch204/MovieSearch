@@ -83,3 +83,33 @@ body {
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* ============================================================
+   Cold-start notice (ColdStartNotice component)
+   The free-tier API/DB nap when idle, so the first request after a
+   while takes up to ~30s. These drive its sweeping progress bar and
+   the soft pulse on its server icon.
+   ============================================================ */
+@keyframes coldstart-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+@keyframes coldstart-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}

@@ -17,10 +17,7 @@ import {
 import { Navbar } from "@/components/Navbar";
 import MovieCard from "@/components/MovieCard";
 import { MovieModal } from "@/components/MovieModal";
-
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+import { API_BASE } from "@/lib/api";
 
 const PER_PAGE = 24;
 

@@ -1,7 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Lock, Mail, User, Loader2 } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { X, Lock, Mail, User } from "lucide-react";
+import { API_BASE } from "@/lib/api";
+import { ColdStartNotice } from "@/components/ColdStartNotice";
+
+// How long a request has to be in flight before we assume it's a cold
+// start (Render/Neon waking up) rather than ordinary network latency, and
+// swap the plain "signing in" text for the fuller explanation.
+const COLD_START_THRESHOLD_MS = 1200;
 
 export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,20 +16,26 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
+  const wakeTimerRef = useRef(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setWakingUp(false);
     setError("");
     setStatusMessage("");
 
-    const apiUrl = (
-      process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-    ).replace(/\/$/, "");
+    const apiUrl = API_BASE;
+
+    wakeTimerRef.current = setTimeout(
+      () => setWakingUp(true),
+      COLD_START_THRESHOLD_MS,
+    );
 
     try {
       if (isLogin) {
@@ -101,6 +114,8 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
       setError(err.message);
       setStatusMessage("");
     } finally {
+      clearTimeout(wakeTimerRef.current);
+      setWakingUp(false);
       setLoading(false);
     }
   };
@@ -152,12 +167,17 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           </div>
         )}
 
-        {statusMessage && (
+        {statusMessage && !wakingUp && (
           <div className="mb-4 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-lg flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-400" />
+            </span>
             {statusMessage}
           </div>
         )}
+
+        {wakingUp && <ColdStartNotice className="mb-4" />}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -216,10 +236,16 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-ink transition flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-ink transition flex items-center justify-center gap-2 mt-2 disabled:opacity-80 disabled:cursor-wait"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="animate-pulse">
+                {wakingUp
+                  ? "Still waking up…"
+                  : isLogin
+                    ? "Signing in…"
+                    : "Creating account…"}
+              </span>
             ) : isLogin ? (
               "Sign In"
             ) : (
